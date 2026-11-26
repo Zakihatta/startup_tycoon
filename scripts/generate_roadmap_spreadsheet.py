@@ -38,8 +38,8 @@ TASKS = [
     ("T-18", "MVP Core", "M3 - Company & Finance", "UI", "HUD utama (uang, tanggal, speed) + panel Finance/Report", "Must-Have", "Done", "src/ui/mod.rs", "HUD top-right + tab Overview & Finance di StartupOS"),
 
     # M4 - Product Development
-    ("T-19", "MVP Core", "M4 - Product Development", "Engine/Code", "Model data & progres produk (fitur, kualitas, bug, rilis versi)", "Must-Have", "To Do", "src/product.rs (planned)", "Siklus build & release produk software"),
-    ("T-20", "MVP Core", "M4 - Product Development", "UI", "UI Product Development di layar komputer/manajemen", "Must-Have", "To Do", "src/ui.rs (planned)", "Pilih proyek, pantau progres, rilis"),
+    ("T-19", "MVP Core", "M4 - Product Development", "Engine/Code", "Model data & progres produk (fitur, kualitas, bug, rilis versi)", "Must-Have", "Done", "src/product/mod.rs", "Siklus Dev->Testing->ReadyToLaunch->Launched + 2 test"),
+    ("T-20", "MVP Core", "M4 - Product Development", "UI", "UI Product Development di layar komputer/manajemen", "Must-Have", "Done", "src/ui/mod.rs", "Tab Product: 3 preset produk, progress bar, tombol Rilis"),
 
     # M5 - Employee System
     ("T-21", "MVP Core", "M5 - Employee System", "Asset 3D", "Buat karakter 3D Developer (.glb) + animasi Idle, Walk, Sitting, Typing", "Must-Have", "To Do", "assets/characters/employees/character_developer.glb", "Skeleton/rig konsisten dengan Founder"),

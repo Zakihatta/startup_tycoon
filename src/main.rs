@@ -7,6 +7,7 @@ mod economy;
 mod interaction;
 mod office;
 mod player;
+mod product;
 mod ui;
 
 use company::CompanyPlugin;
@@ -15,6 +16,7 @@ use economy::EconomyPlugin;
 use interaction::InteractionPlugin;
 use office::OfficePlugin;
 use player::PlayerPlugin;
+use product::ProductPlugin;
 use ui::GameUiPlugin;
 
 fn resolve_assets_dir() -> String {
@@ -58,7 +60,7 @@ fn main() {
                 })
                 .set(WindowPlugin {
                     primary_window: Some(Window {
-                        title: "Startup Tycoon - M3 Office Prototype".into(),
+                        title: "Startup Tycoon - M4 Office Prototype".into(),
                         resolution: (1280, 720).into(),
                         ..default()
                     }),
@@ -69,6 +71,7 @@ fn main() {
             TimePlugin,
             CompanyPlugin,
             EconomyPlugin,
+            ProductPlugin,
             OfficePlugin,
             PlayerPlugin,
             InteractionPlugin,

@@ -1,3 +1,3 @@
 pub mod time;
 
-pub use time::{DayPassedMessage, GameClock, SimSpeed, TimePlugin};
+pub use time::{DayPassedMessage, GameClock, HourPassedMessage, SimSpeed, TimePlugin};

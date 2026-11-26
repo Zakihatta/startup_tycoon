@@ -12,6 +12,7 @@ use crate::{
     economy::FinanceState,
     interaction::{ActiveInteractionTarget, InteractTriggered, InteractableKind},
     player::{CameraMode, PlayerController},
+    product::{ProductCommand, ProductPhase, ProductState, PRODUCT_DAILY_DEV_COST, PRODUCT_START_COST},
 };
 
 pub struct GameUiPlugin;
@@ -29,6 +30,7 @@ impl Plugin for GameUiPlugin {
                     update_hud_status,
                     update_speed_button_styles,
                     update_tab_button_styles,
+                    update_action_button_styles,
                     update_interaction_prompt,
                     sync_workstation_modal_visibility,
                     update_workstation_contents,
@@ -42,6 +44,7 @@ impl Plugin for GameUiPlugin {
 pub enum WorkstationTab {
     #[default]
     Overview,
+    Product,
     Finance,
 }
 
@@ -89,6 +92,24 @@ struct TabButton(WorkstationTab);
 struct OverviewBodyText;
 
 #[derive(Component)]
+struct ProductTabContainer;
+
+#[derive(Component)]
+struct ProductBodyText;
+
+#[derive(Component)]
+struct ProductStarterGroup;
+
+#[derive(Component)]
+struct ProductProgressBarFill;
+
+#[derive(Component)]
+struct ProductLaunchButton;
+
+#[derive(Component)]
+struct ActionButton;
+
+#[derive(Component)]
 struct FinanceBodyText;
 
 fn format_money(amount: i64) -> String {
@@ -109,6 +130,15 @@ fn format_money(amount: i64) -> String {
     }
 }
 
+fn hud_hint_string(mode_label: &str) -> String {
+    format!(
+        "Startup Tycoon (M4) - Mode: {mode_label}\n\
+         [Klik Kanan] Kunci Mouse | [ESC] Lepas Mouse\n\
+         [WASD] Jalan | [Shift] Lari | [V] 1st/3rd Person | [E] Interaksi\n\
+         [0/P] Pause | [1] 1x | [2] 2x"
+    )
+}
+
 fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
     let icon_money: Handle<Image> = asset_server.load("ui/icons/ui_icon_money.png");
     let icon_time: Handle<Image> = asset_server.load("ui/icons/ui_icon_time.png");
@@ -117,12 +147,7 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
     // Top-left controls & mode overlay
     commands.spawn((
         HudHintText,
-        Text::new(
-            "Startup Tycoon (M3) - Mode: 3rd Person\n\
-             [Klik Kiri] Kunci Mouse | [ESC] Lepas Mouse\n\
-             [WASD] Jalan | [Shift] Lari | [V] 1st/3rd Person | [E] Interaksi\n\
-             [0/P] Pause | [1] 1x | [2] 2x",
-        ),
+        Text::new(hud_hint_string("3rd Person")),
         TextFont {
             font_size: FontSize::Px(14.0),
             ..default()
@@ -156,7 +181,6 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
             BorderColor::all(Color::srgb(0.22, 0.30, 0.42)),
         ))
         .with_children(|bar| {
-            // Cash group
             bar.spawn(Node {
                 flex_direction: FlexDirection::Row,
                 align_items: AlignItems::Center,
@@ -183,7 +207,6 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                 ));
             });
 
-            // Time group
             bar.spawn(Node {
                 flex_direction: FlexDirection::Row,
                 align_items: AlignItems::Center,
@@ -201,7 +224,7 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                 ));
                 time_box.spawn((
                     HudTimeText,
-                    Text::new("Hari 1 · 09:00"),
+                    Text::new("Hari 1 · 09:00 [1x]"),
                     TextFont {
                         font_size: FontSize::Px(15.0),
                         ..default()
@@ -210,7 +233,6 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                 ));
             });
 
-            // Speed buttons
             bar.spawn(Node {
                 flex_direction: FlexDirection::Row,
                 column_gap: px(4.0),
@@ -331,7 +353,7 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
             backdrop
                 .spawn((
                     Node {
-                        width: px(700.0),
+                        width: px(720.0),
                         flex_direction: FlexDirection::Column,
                         padding: UiRect::all(px(22.0)),
                         row_gap: px(14.0),
@@ -368,7 +390,7 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                                         },
                                     ));
                                     title_row.spawn((
-                                        Text::new("StartupOS v0.2 - Manajemen Perusahaan"),
+                                        Text::new("StartupOS v0.3 - Manajemen Perusahaan"),
                                         TextFont {
                                             font_size: FontSize::Px(21.0),
                                             ..default()
@@ -416,6 +438,7 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                         .with_children(|tabs| {
                             for (tab, label) in [
                                 (WorkstationTab::Overview, "Overview"),
+                                (WorkstationTab::Product, "Product"),
                                 (WorkstationTab::Finance, "Finance"),
                             ] {
                                 tabs.spawn((
@@ -463,6 +486,142 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                         BackgroundColor(Color::srgb(0.14, 0.18, 0.25)),
                     ));
 
+                    // Product Tab Container
+                    panel
+                        .spawn((
+                            ProductTabContainer,
+                            Visibility::Hidden,
+                            Node {
+                                display: Display::None,
+                                flex_direction: FlexDirection::Column,
+                                row_gap: px(12.0),
+                                padding: UiRect::all(px(14.0)),
+                                ..default()
+                            },
+                            BackgroundColor(Color::srgb(0.14, 0.18, 0.25)),
+                        ))
+                        .with_children(|prod_box| {
+                            prod_box.spawn((
+                                ProductBodyText,
+                                Text::new("Belum ada proyek produk aktif."),
+                                TextFont {
+                                    font_size: FontSize::Px(15.0),
+                                    ..default()
+                                },
+                                TextColor(Color::srgb(0.92, 0.94, 0.98)),
+                            ));
+
+                            // Progress bar track
+                            prod_box
+                                .spawn((
+                                    Node {
+                                        width: percent(100.0),
+                                        height: px(14.0),
+                                        ..default()
+                                    },
+                                    BackgroundColor(Color::srgb(0.08, 0.11, 0.16)),
+                                ))
+                                .with_children(|track| {
+                                    track.spawn((
+                                        ProductProgressBarFill,
+                                        Node {
+                                            width: percent(0.0),
+                                            height: percent(100.0),
+                                            ..default()
+                                        },
+                                        BackgroundColor(Color::srgb(0.20, 0.78, 0.56)),
+                                    ));
+                                });
+
+                            // Starter presets (shown when no active product)
+                            prod_box
+                                .spawn((
+                                    ProductStarterGroup,
+                                    Node {
+                                        flex_direction: FlexDirection::Row,
+                                        flex_wrap: FlexWrap::Wrap,
+                                        column_gap: px(8.0),
+                                        row_gap: px(8.0),
+                                        ..default()
+                                    },
+                                ))
+                                .with_children(|starters| {
+                                    for (name, cat) in [
+                                        ("TaskFlow SaaS", "Productivity"),
+                                        ("CloudNotes App", "Collaboration"),
+                                        ("BugTracker Pro", "DevTools"),
+                                    ] {
+                                        let name_owned = name.to_string();
+                                        let cat_owned = cat.to_string();
+                                        starters
+                                            .spawn((
+                                                ActionButton,
+                                                Button,
+                                                Hovered::default(),
+                                                Node {
+                                                    padding: UiRect::axes(px(12.0), px(8.0)),
+                                                    ..default()
+                                                },
+                                                BackgroundColor(Color::srgb(0.16, 0.52, 0.40)),
+                                            ))
+                                            .observe(
+                                                move |_: On<Activate>,
+                                                      mut writer: MessageWriter<ProductCommand>| {
+                                                    writer.write(ProductCommand::StartProject {
+                                                        name: name_owned.clone(),
+                                                        category: cat_owned.clone(),
+                                                    });
+                                                },
+                                            )
+                                            .with_children(|b| {
+                                                b.spawn((
+                                                    Text::new(format!(
+                                                        "Buat {name} ({})",
+                                                        format_money(PRODUCT_START_COST)
+                                                    )),
+                                                    TextFont {
+                                                        font_size: FontSize::Px(14.0),
+                                                        ..default()
+                                                    },
+                                                    TextColor(Color::WHITE),
+                                                ));
+                                            });
+                                    }
+                                });
+
+                            // Launch button (shown only when ReadyToLaunch)
+                            prod_box
+                                .spawn((
+                                    ProductLaunchButton,
+                                    ActionButton,
+                                    Visibility::Hidden,
+                                    Button,
+                                    Hovered::default(),
+                                    Node {
+                                        display: Display::None,
+                                        align_self: AlignSelf::FlexStart,
+                                        padding: UiRect::axes(px(16.0), px(9.0)),
+                                        ..default()
+                                    },
+                                    BackgroundColor(Color::srgb(0.16, 0.56, 0.42)),
+                                ))
+                                .observe(
+                                    |_: On<Activate>, mut writer: MessageWriter<ProductCommand>| {
+                                        writer.write(ProductCommand::LaunchProduct);
+                                    },
+                                )
+                                .with_children(|b| {
+                                    b.spawn((
+                                        Text::new("Rilis Produk Sekarang!"),
+                                        TextFont {
+                                            font_size: FontSize::Px(15.0),
+                                            ..default()
+                                        },
+                                        TextColor(Color::WHITE),
+                                    ));
+                                });
+                        });
+
                     // Finance Body
                     panel.spawn((
                         FinanceBodyText,
@@ -483,8 +642,8 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
 
                     panel.spawn((
                         Text::new(
-                            "Tips: Gunakan [0/P] Pause, [1] 1x, [2] 2x untuk menguji arus kas & sewa kantor harian. \
-                             Menu Product & Employee akan hadir di M4–M5.",
+                            "Tips: Mulai proyek di tab Product, lalu jalankan waktu (1x/2x). \
+                             Rekrutmen Developer (M5) & Penjualan Pasar (M6) hadir di milestone berikutnya.",
                         ),
                         TextFont {
                             font_size: FontSize::Px(13.0),
@@ -552,12 +711,7 @@ fn update_hud_mode(
         CameraMode::FirstPerson => "1st Person",
         CameraMode::ThirdPerson => "3rd Person",
     };
-    text.0 = format!(
-        "Startup Tycoon (M3) - Mode: {mode_label}\n\
-         [Klik Kiri] Kunci Mouse | [ESC] Lepas Mouse\n\
-         [WASD] Jalan | [Shift] Lari | [V] 1st/3rd Person | [E] Interaksi\n\
-         [0/P] Pause | [1] 1x | [2] 2x"
-    );
+    text.0 = hud_hint_string(mode_label);
 }
 
 fn update_hud_status(
@@ -617,6 +771,20 @@ fn update_tab_button_styles(
     }
 }
 
+fn update_action_button_styles(
+    mut btn_q: Query<(&Hovered, Option<&Pressed>, &mut BackgroundColor), With<ActionButton>>,
+) {
+    for (hovered, pressed, mut bg) in &mut btn_q {
+        if pressed.is_some() {
+            *bg = BackgroundColor(Color::srgb(0.12, 0.44, 0.33));
+        } else if hovered.get() {
+            *bg = BackgroundColor(Color::srgb(0.22, 0.68, 0.52));
+        } else {
+            *bg = BackgroundColor(Color::srgb(0.16, 0.52, 0.40));
+        }
+    }
+}
+
 fn update_interaction_prompt(
     active: Res<ActiveInteractionTarget>,
     ui_state: Res<WorkstationUiState>,
@@ -649,6 +817,17 @@ fn sync_workstation_modal_visibility(
         (&mut Visibility, &mut Node),
         (
             With<OverviewBodyText>,
+            Without<ProductTabContainer>,
+            Without<FinanceBodyText>,
+            Without<WorkstationModal>,
+            Without<CrosshairDot>,
+        ),
+    >,
+    mut product_q: Query<
+        (&mut Visibility, &mut Node),
+        (
+            With<ProductTabContainer>,
+            Without<OverviewBodyText>,
             Without<FinanceBodyText>,
             Without<WorkstationModal>,
             Without<CrosshairDot>,
@@ -659,6 +838,7 @@ fn sync_workstation_modal_visibility(
         (
             With<FinanceBodyText>,
             Without<OverviewBodyText>,
+            Without<ProductTabContainer>,
             Without<WorkstationModal>,
             Without<CrosshairDot>,
         ),
@@ -681,15 +861,23 @@ fn sync_workstation_modal_visibility(
             Visibility::Visible
         };
     }
-    if let Ok((mut ov_vis, mut ov_node)) = overview_q.single_mut() {
-        let show = ui_state.active_tab == WorkstationTab::Overview;
-        *ov_vis = if show { Visibility::Inherited } else { Visibility::Hidden };
-        ov_node.display = if show { Display::Flex } else { Display::None };
+
+    let show_ov = ui_state.active_tab == WorkstationTab::Overview;
+    if let Ok((mut vis, mut node)) = overview_q.single_mut() {
+        *vis = if show_ov { Visibility::Inherited } else { Visibility::Hidden };
+        node.display = if show_ov { Display::Flex } else { Display::None };
     }
-    if let Ok((mut fin_vis, mut fin_node)) = finance_q.single_mut() {
-        let show = ui_state.active_tab == WorkstationTab::Finance;
-        *fin_vis = if show { Visibility::Inherited } else { Visibility::Hidden };
-        fin_node.display = if show { Display::Flex } else { Display::None };
+
+    let show_prod = ui_state.active_tab == WorkstationTab::Product;
+    if let Ok((mut vis, mut node)) = product_q.single_mut() {
+        *vis = if show_prod { Visibility::Inherited } else { Visibility::Hidden };
+        node.display = if show_prod { Display::Flex } else { Display::None };
+    }
+
+    let show_fin = ui_state.active_tab == WorkstationTab::Finance;
+    if let Ok((mut vis, mut node)) = finance_q.single_mut() {
+        *vis = if show_fin { Visibility::Inherited } else { Visibility::Hidden };
+        node.display = if show_fin { Display::Flex } else { Display::None };
     }
 }
 
@@ -698,15 +886,30 @@ fn update_workstation_contents(
     company: Res<CompanyState>,
     clock: Res<GameClock>,
     finance: Res<FinanceState>,
-    mut overview_q: Query<&mut Text, (With<OverviewBodyText>, Without<FinanceBodyText>)>,
-    mut finance_q: Query<&mut Text, (With<FinanceBodyText>, Without<OverviewBodyText>)>,
+    product: Res<ProductState>,
+    mut overview_q: Query<&mut Text, (With<OverviewBodyText>, Without<FinanceBodyText>, Without<ProductBodyText>)>,
+    mut product_q: Query<&mut Text, (With<ProductBodyText>, Without<OverviewBodyText>, Without<FinanceBodyText>)>,
+    mut finance_q: Query<&mut Text, (With<FinanceBodyText>, Without<OverviewBodyText>, Without<ProductBodyText>)>,
+    mut starter_q: Query<(&mut Visibility, &mut Node), (With<ProductStarterGroup>, Without<ProductLaunchButton>, Without<ProductProgressBarFill>)>,
+    mut launch_q: Query<(&mut Visibility, &mut Node), (With<ProductLaunchButton>, Without<ProductStarterGroup>, Without<ProductProgressBarFill>)>,
+    mut fill_q: Query<&mut Node, (With<ProductProgressBarFill>, Without<ProductStarterGroup>, Without<ProductLaunchButton>)>,
 ) {
     if !ui_state.is_open {
         return;
     }
-    if !ui_state.is_changed() && !company.is_changed() && !clock.is_changed() && !finance.is_changed() {
+    if !ui_state.is_changed()
+        && !company.is_changed()
+        && !clock.is_changed()
+        && !finance.is_changed()
+        && !product.is_changed()
+    {
         return;
     }
+
+    let product_summary = match &product.active {
+        None => "Belum ada proyek (buka tab Product)".to_string(),
+        Some(p) => format!("{} ({} · {:.0}%)", p.name, p.phase.label(), p.progress),
+    };
 
     if let Ok(mut text) = overview_q.single_mut() {
         let warning = if finance.is_low_cash() {
@@ -723,6 +926,7 @@ fn update_workstation_contents(
              • Kas Saat Ini : {}\n\
              • Laba/Rugi    : {}\n\
              • Reputasi     : {:.1}\n\
+             • Produk Aktif : {}\n\
              • Tim          : {} orang (Founder){}",
             company.name,
             company.industry,
@@ -733,9 +937,63 @@ fn update_workstation_contents(
             format_money(finance.cash_balance),
             format_money(finance.net_profit()),
             company.reputation,
+            product_summary,
             company.team_size,
             warning,
         );
+    }
+
+    if let Ok(mut text) = product_q.single_mut() {
+        if let Some(p) = &product.active {
+            let launch_info = match p.launch_day {
+                Some(d) => format!("Hari {d}"),
+                None => "Belum dirilis".to_string(),
+            };
+            text.0 = format!(
+                "Pengembangan Produk Software\n\
+                 • Nama Produk  : {}\n\
+                 • Kategori     : {}\n\
+                 • Fase         : {}\n\
+                 • Progres Fase : {:.0}%\n\
+                 • Kualitas     : {:.1} / 100\n\
+                 • Mulai / Rilis: Hari {} / {}\n\
+                 • Biaya R&D    : -{}/hari (saat Dev/Testing)",
+                p.name,
+                p.category,
+                p.phase.label(),
+                p.progress,
+                p.quality,
+                p.start_day,
+                launch_info,
+                format_money(PRODUCT_DAILY_DEV_COST),
+            );
+        } else {
+            text.0 = format!(
+                "Belum Ada Produk Aktif\n\
+                 Pilih salah satu konsep produk software di bawah untuk mulai membangun (biaya inisiasi {}):",
+                format_money(PRODUCT_START_COST)
+            );
+        }
+    }
+
+    if let Ok(mut fill_node) = fill_q.single_mut() {
+        let pct = product.active.as_ref().map_or(0.0, |p| p.progress.clamp(0.0, 100.0));
+        fill_node.width = percent(pct);
+    }
+
+    if let Ok((mut s_vis, mut s_node)) = starter_q.single_mut() {
+        let show = product.active.is_none();
+        *s_vis = if show { Visibility::Inherited } else { Visibility::Hidden };
+        s_node.display = if show { Display::Flex } else { Display::None };
+    }
+
+    if let Ok((mut l_vis, mut l_node)) = launch_q.single_mut() {
+        let show = product
+            .active
+            .as_ref()
+            .is_some_and(|p| p.phase == ProductPhase::ReadyToLaunch);
+        *l_vis = if show { Visibility::Inherited } else { Visibility::Hidden };
+        l_node.display = if show { Display::Flex } else { Display::None };
     }
 
     if let Ok(mut text) = finance_q.single_mut() {

@@ -127,7 +127,7 @@ fn toggle_cursor_grab(
     if ui_state.is_open {
         return;
     }
-    if mouse.just_pressed(MouseButton::Left) {
+    if mouse.just_pressed(MouseButton::Right) {
         let hovering_hud = hud_hover_q.iter().any(|h| h.get());
         if !hovering_hud {
             cursor_options.visible = false;
