@@ -1,6 +1,10 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::{
+    collections::HashSet,
+    f32::consts::PI,
+    time::Duration,
+};
 
 use crate::{
     company::CompanyState,
@@ -16,6 +20,8 @@ use crate::{
     product::{ProductPhase, ProductState},
 };
 
+const COURIER_ASSET: &str = "characters/courier/character_courier.glb";
+
 pub struct LifePlugin;
 
 impl Plugin for LifePlugin {
@@ -26,12 +32,15 @@ impl Plugin for LifePlugin {
             .init_resource::<QuestState>()
             .add_message::<LifeCommand>()
             .add_message::<PickupSoundEvent>()
+            .add_systems(Startup, setup_courier_anim_graph)
             .add_systems(
                 Update,
                 (
                     handle_life_commands,
                     tick_player_needs_hourly,
                     advance_deliveries_and_couriers,
+                    setup_courier_animations,
+                    sync_courier_animations,
                     handle_courier_and_sofa_interactions,
                     evaluate_quests_and_milestones,
                 )
@@ -429,6 +438,34 @@ pub struct CourierNpc {
     pub leaving: bool,
     pub target_pos: Vec3,
     pub notified_arrival: bool,
+    pub active_anim: Option<usize>,
+}
+
+#[derive(Component)]
+pub struct CourierAnimPlayer;
+
+#[derive(Resource)]
+struct CourierAnimations {
+    graph: Handle<AnimationGraph>,
+    idle: AnimationNodeIndex,
+    walk: AnimationNodeIndex,
+}
+
+fn setup_courier_anim_graph(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut graphs: ResMut<Assets<AnimationGraph>>,
+) {
+    let clips = [
+        asset_server.load(GltfAssetLabel::Animation(0).from_asset(COURIER_ASSET)),
+        asset_server.load(GltfAssetLabel::Animation(1).from_asset(COURIER_ASSET)),
+    ];
+    let (graph, nodes) = AnimationGraph::from_clips(clips);
+    commands.insert_resource(CourierAnimations {
+        graph: graphs.add(graph),
+        idle: nodes[0],
+        walk: nodes[1],
+    });
 }
 
 #[derive(Message, Clone, Copy, Debug)]
@@ -537,76 +574,93 @@ impl QuestState {
     }
 }
 
-fn spawn_courier_entity(commands: &mut Commands, meshes: &mut Assets<Mesh>, materials: &mut Assets<StandardMaterial>) {
-    let jacket_mat = materials.add(StandardMaterial {
-        base_color: Color::srgb(0.18, 0.56, 0.44),
-        perceptual_roughness: 0.78,
-        ..default()
-    });
-    let skin_mat = materials.add(StandardMaterial {
-        base_color: Color::srgb(0.92, 0.74, 0.62),
-        perceptual_roughness: 0.80,
-        ..default()
-    });
-    let cap_mat = materials.add(StandardMaterial {
-        base_color: Color::srgb(0.95, 0.74, 0.24),
-        perceptual_roughness: 0.75,
-        ..default()
-    });
-    let pants_mat = materials.add(StandardMaterial {
-        base_color: Color::srgb(0.24, 0.27, 0.34),
-        perceptual_roughness: 0.85,
-        ..default()
-    });
-    let box_mat = materials.add(StandardMaterial {
-        base_color: Color::srgb(0.76, 0.58, 0.38),
-        perceptual_roughness: 0.88,
-        ..default()
-    });
+fn spawn_courier_entity(commands: &mut Commands, asset_server: &AssetServer) {
+    commands.spawn((
+        CourierNpc {
+            arriving: true,
+            leaving: false,
+            target_pos: Vec3::new(0.88, 0.0, 2.75),
+            notified_arrival: false,
+            active_anim: None,
+        },
+        Transform::from_xyz(0.88, 0.0, 4.35),
+        Visibility::default(),
+        WorldAssetRoot(asset_server.load(GltfAssetLabel::Scene(0).from_asset(COURIER_ASSET))),
+    ));
+}
 
-    commands
-        .spawn((
-            CourierNpc {
-                arriving: true,
-                leaving: false,
-                target_pos: Vec3::new(0.88, 0.0, 2.75),
-                notified_arrival: false,
-            },
-            Transform::from_xyz(0.88, 0.0, 4.35),
-            Visibility::default(),
-        ))
-        .with_children(|root| {
-            // Legs
-            root.spawn((
-                Mesh3d(meshes.add(Cuboid::new(0.32, 0.72, 0.20))),
-                MeshMaterial3d(pants_mat),
-                Transform::from_xyz(0.0, 0.36, 0.0),
+fn has_courier_ancestor(
+    mut current: Entity,
+    parents: &Query<&ChildOf>,
+    couriers: &Query<(), With<CourierNpc>>,
+) -> Option<Entity> {
+    loop {
+        if couriers.contains(current) {
+            return Some(current);
+        }
+        match parents.get(current) {
+            Ok(child_of) => current = child_of.parent(),
+            Err(_) => return None,
+        }
+    }
+}
+
+fn setup_courier_animations(
+    mut commands: Commands,
+    anims: Res<CourierAnimations>,
+    parents: Query<&ChildOf>,
+    couriers: Query<(), With<CourierNpc>>,
+    mut players: Query<(Entity, &mut AnimationPlayer), Added<AnimationPlayer>>,
+) {
+    for (entity, mut player) in &mut players {
+        if has_courier_ancestor(entity, &parents, &couriers).is_some() {
+            let mut transitions = AnimationTransitions::new();
+            transitions
+                .play(&mut player, anims.walk, Duration::ZERO)
+                .repeat();
+            commands.entity(entity).insert((
+                CourierAnimPlayer,
+                AnimationGraphHandle(anims.graph.clone()),
+                transitions,
             ));
-            // Torso jacket
-            root.spawn((
-                Mesh3d(meshes.add(Cuboid::new(0.42, 0.58, 0.24))),
-                MeshMaterial3d(jacket_mat),
-                Transform::from_xyz(0.0, 1.01, 0.0),
-            ));
-            // Head
-            root.spawn((
-                Mesh3d(meshes.add(Sphere::new(0.17))),
-                MeshMaterial3d(skin_mat),
-                Transform::from_xyz(0.0, 1.48, 0.0),
-            ));
-            // Delivery cap
-            root.spawn((
-                Mesh3d(meshes.add(Cuboid::new(0.30, 0.10, 0.34))),
-                MeshMaterial3d(cap_mat),
-                Transform::from_xyz(0.0, 1.63, -0.02),
-            ));
-            // Parcel box held in front
-            root.spawn((
-                Mesh3d(meshes.add(Cuboid::new(0.32, 0.24, 0.28))),
-                MeshMaterial3d(box_mat),
-                Transform::from_xyz(0.0, 0.98, -0.26),
-            ));
-        });
+        }
+    }
+}
+
+fn sync_courier_animations(
+    anims: Res<CourierAnimations>,
+    parents: Query<&ChildOf>,
+    mut courier_q: Query<&mut CourierNpc>,
+    mut anim_q: Query<
+        (Entity, &mut AnimationPlayer, &mut AnimationTransitions),
+        With<CourierAnimPlayer>,
+    >,
+) {
+    for (anim_entity, mut anim_player, mut transitions) in &mut anim_q {
+        let mut cur = anim_entity;
+        let mut owner = None;
+        while let Ok(child_of) = parents.get(cur) {
+            cur = child_of.parent();
+            if courier_q.contains(cur) {
+                owner = Some(cur);
+                break;
+            }
+        }
+        let Some(c_ent) = owner else {
+            continue;
+        };
+        let Ok(mut npc) = courier_q.get_mut(c_ent) else {
+            continue;
+        };
+        let target_idx = if npc.arriving || npc.leaving { 1 } else { 0 };
+        if npc.active_anim != Some(target_idx) {
+            let node = if target_idx == 1 { anims.walk } else { anims.idle };
+            transitions
+                .play(&mut anim_player, node, Duration::from_millis(160))
+                .repeat();
+            npc.active_anim = Some(target_idx);
+        }
+    }
 }
 
 fn boost_team_with_snack(employees: &mut EmployeeState) {
@@ -738,10 +792,9 @@ fn tick_player_needs_hourly(
 #[allow(clippy::too_many_arguments)]
 fn advance_deliveries_and_couriers(
     mut commands: Commands,
+    asset_server: Res<AssetServer>,
     time: Res<Time>,
     clock: Res<GameClock>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
     mut delivery: ResMut<DeliveryState>,
     mut courier_q: Query<(Entity, &mut Transform, &mut CourierNpc)>,
     mut notify: MessageWriter<NotifyMessage>,
@@ -764,7 +817,7 @@ fn advance_deliveries_and_couriers(
     }
 
     if any_arrived_order && courier_q.is_empty() {
-        spawn_courier_entity(&mut commands, &mut meshes, &mut materials);
+        spawn_courier_entity(&mut commands, &asset_server);
     }
 
     for (entity, mut tf, mut npc) in &mut courier_q {
@@ -775,7 +828,7 @@ fn advance_deliveries_and_couriers(
                 commands.entity(entity).despawn();
             } else {
                 tf.translation += diff.normalize() * 2.1 * dt;
-                tf.rotation = Quat::from_rotation_y(0.0);
+                tf.rotation = Quat::from_rotation_y(PI);
             }
             continue;
         }

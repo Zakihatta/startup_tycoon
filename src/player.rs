@@ -1,6 +1,7 @@
 use bevy::{
     input::mouse::AccumulatedMouseMotion,
     picking::hover::Hovered,
+    post_process::bloom::Bloom,
     prelude::*,
     window::{CursorGrabMode, CursorOptions},
 };
@@ -116,8 +117,16 @@ fn spawn_player(
             WorldAssetRoot(asset_server.load(GltfAssetLabel::Scene(0).from_asset(FOUNDER_ASSET))),
         ));
 
-    // Dedicated camera entity synced to PlayerController
-    commands.spawn((Camera3d::default(), Transform::default(), PlayerCamera));
+    // Dedicated camera entity synced to PlayerController with soft natural Bloom
+    commands.spawn((
+        Camera3d::default(),
+        Bloom {
+            intensity: 0.16,
+            ..Bloom::NATURAL
+        },
+        Transform::default(),
+        PlayerCamera,
+    ));
 }
 
 fn toggle_cursor_grab(
@@ -266,7 +275,7 @@ fn player_move(
     let r = player.radius;
 
     // Axis-separated collision for smooth wall sliding
-    let mut next_x = (tf.translation.x + step.x).clamp(-colliders.room_half_x, colliders.room_half_x);
+    let mut next_x = (tf.translation.x + step.x).clamp(colliders.room_min_x, colliders.room_max_x);
     for box2d in &colliders.obstacles {
         if tf.translation.z > box2d.min_z - r && tf.translation.z < box2d.max_z + r
             && next_x > box2d.min_x - r

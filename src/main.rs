@@ -10,6 +10,7 @@ mod interaction;
 mod life;
 mod market;
 mod office;
+mod office_loft;
 mod player;
 mod product;
 mod save_system;
@@ -24,6 +25,7 @@ use interaction::InteractionPlugin;
 use life::LifePlugin;
 use market::MarketPlugin;
 use office::OfficePlugin;
+use office_loft::OfficeAtmospherePlugin;
 use player::PlayerPlugin;
 use product::ProductPlugin;
 use save_system::SaveSystemPlugin;
@@ -56,10 +58,10 @@ fn resolve_assets_dir() -> String {
 fn main() {
     let assets_dir = resolve_assets_dir();
     App::new()
-        .insert_resource(ClearColor(Color::srgb(0.68, 0.80, 0.92)))
+        .insert_resource(ClearColor(Color::srgb(0.95, 0.84, 0.70)))
         .insert_resource(GlobalAmbientLight {
-            color: Color::srgb(0.98, 0.96, 0.92),
-            brightness: 450.0,
+            color: Color::srgb(1.0, 0.89, 0.76),
+            brightness: 330.0,
             ..default()
         })
         .add_plugins(
@@ -87,6 +89,7 @@ fn main() {
             EmployeePlugin,
             MarketPlugin,
             OfficePlugin,
+            OfficeAtmospherePlugin,
             PlayerPlugin,
             InteractionPlugin,
             LifePlugin,

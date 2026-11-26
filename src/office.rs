@@ -40,9 +40,19 @@ pub struct Aabb2d {
 #[derive(Resource, Default)]
 pub struct OfficeColliders {
     pub obstacles: Vec<Aabb2d>,
-    pub room_half_x: f32,
+    pub room_min_x: f32,
+    pub room_max_x: f32,
     pub room_half_z: f32,
 }
+
+#[derive(Component)]
+pub struct SunLight;
+
+#[derive(Component)]
+pub struct WarmLampLight;
+
+#[derive(Component)]
+pub struct EastArchwayTile;
 
 #[derive(Component)]
 pub struct OfficeDoor {
@@ -204,7 +214,10 @@ pub enum OfficeUpgradeCommand {
 pub struct PurchasedOfficeProp;
 
 pub fn rebuild_colliders(colliders: &mut OfficeColliders, expansion: &OfficeExpansionState) {
-    colliders.room_half_x = 2.68;
+    colliders.room_min_x = -2.68;
+    if colliders.room_max_x < 2.68 {
+        colliders.room_max_x = 2.68;
+    }
     colliders.room_half_z = 2.18;
     colliders.obstacles = vec![
         // Founder desk + chair area
@@ -221,9 +234,30 @@ pub fn rebuild_colliders(colliders: &mut OfficeColliders, expansion: &OfficeExpa
             min_z: -2.05,
             max_z: -0.60,
         },
+        // West wall wooden bookshelf
+        Aabb2d {
+            min_x: -2.95,
+            max_x: -2.52,
+            min_z: -1.25,
+            max_z: -0.05,
+        },
     ];
     for kind in &expansion.purchased {
         colliders.obstacles.push(kind.collider());
+    }
+    if colliders.room_max_x > 3.0 {
+        colliders.obstacles.push(Aabb2d {
+            min_x: 3.30,
+            max_x: 5.55,
+            min_z: -2.30,
+            max_z: -0.25,
+        });
+        colliders.obstacles.push(Aabb2d {
+            min_x: 4.10,
+            max_x: 5.35,
+            min_z: 0.85,
+            max_z: 1.95,
+        });
     }
 }
 
@@ -372,21 +406,21 @@ fn setup_office_scene(
     expansion: Res<OfficeExpansionState>,
     mut colliders: ResMut<OfficeColliders>,
 ) {
-    // Outdoor lawn/courtyard ground so window views feel grounded
+    // Outdoor warm courtyard lawn so window views feel cozy & sunlit
     commands.spawn((
-        Mesh3d(meshes.add(Plane3d::default().mesh().size(48.0, 48.0))),
+        Mesh3d(meshes.add(Plane3d::default().mesh().size(56.0, 56.0))),
         MeshMaterial3d(materials.add(StandardMaterial {
-            base_color: Color::srgb(0.46, 0.58, 0.42),
+            base_color: Color::srgb(0.54, 0.63, 0.41),
             perceptual_roughness: 0.95,
             ..default()
         })),
         Transform::from_xyz(0.0, -0.07, 0.0),
     ));
 
-    // Perimeter ceiling beams (leaves central skylight open for warm daylight)
+    // Perimeter warm oak ceiling beams (leaves central skylight open for golden sunbeams)
     let beam_mat = materials.add(StandardMaterial {
-        base_color: Color::srgb(0.92, 0.91, 0.88),
-        perceptual_roughness: 0.85,
+        base_color: Color::srgb(0.68, 0.52, 0.36),
+        perceptual_roughness: 0.72,
         ..default()
     });
     for (pos, size) in [
@@ -484,34 +518,40 @@ fn setup_office_scene(
         } else {
             wall_plain.clone()
         };
-        commands.spawn((
+        let mut east_cmd = commands.spawn((
             WorldAssetRoot(east_scene),
             Transform::from_xyz(3.0, 0.0, z).with_rotation(Quat::from_rotation_y(FRAC_PI_2)),
         ));
+        if gz == 1 || gz == 2 || gz == 3 {
+            east_cmd.insert(EastArchwayTile);
+        }
     }
 
     // Founder Workstation (left) & Developer #1 Workstation (right)
     spawn_workstation(&mut commands, &asset_server, Vec3::new(-1.3, 0.0, -1.65), 0.0, true);
     spawn_workstation(&mut commands, &asset_server, Vec3::new(1.3, 0.0, -1.65), 0.0, false);
 
-    // Lighting
+    // Golden-hour sunlight angled across the tall grid windows + warm interior fill lamp
     commands.spawn((
+        SunLight,
         DirectionalLight {
-            illuminance: 9_000.0,
+            color: Color::srgb(1.0, 0.84, 0.60),
+            illuminance: 11_500.0,
             shadow_maps_enabled: true,
             ..default()
         },
-        Transform::from_xyz(5.0, 8.0, -5.0).looking_at(Vec3::ZERO, Vec3::Y),
+        Transform::from_xyz(7.2, 4.2, -4.6).looking_at(Vec3::ZERO, Vec3::Y),
     ));
     commands.spawn((
+        WarmLampLight,
         PointLight {
-            color: Color::srgb(1.0, 0.96, 0.88),
-            intensity: 180_000.0,
+            color: Color::srgb(1.0, 0.88, 0.70),
+            intensity: 150_000.0,
             range: 14.0,
             shadow_maps_enabled: true,
             ..default()
         },
-        Transform::from_xyz(0.0, 2.55, 0.0),
+        Transform::from_xyz(0.0, 2.48, -0.15),
     ));
 
     rebuild_colliders(&mut colliders, &expansion);

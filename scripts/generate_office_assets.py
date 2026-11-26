@@ -27,24 +27,32 @@ from glb_lib import (
 
 def build_floor_tile(out_path: str) -> None:
     b = GLBBuilder("FloorTileScene")
-    mat_floor = b.add_material("FloorWarmBeige", (0.86, 0.82, 0.75, 1.0), roughness=0.78, metallic=0.0)
-    mat_grout = b.add_material("FloorGroove", (0.74, 0.70, 0.63, 1.0), roughness=0.88, metallic=0.0)
+    mat_wood_a = b.add_material("FloorOakLight", (0.74, 0.57, 0.39, 1.0), roughness=0.68, metallic=0.0)
+    mat_wood_b = b.add_material("FloorOakWarm", (0.66, 0.49, 0.33, 1.0), roughness=0.72, metallic=0.0)
+    mat_grout = b.add_material("FloorSeam", (0.44, 0.31, 0.20, 1.0), roughness=0.88, metallic=0.0)
 
-    # 1m x 1m tile, top surface at y = 0.0
+    # 1m x 1m hardwood plank tile, top surface at y = 0.0
     base = make_box(1.0, 0.05, 1.0, (0.0, -0.035, 0.0))
-    top_slab = make_box(0.985, 0.01, 0.985, (0.0, -0.005, 0.0))
-    mesh = b.add_mesh("FloorTileMesh", [(base, mat_grout), (top_slab, mat_floor)])
+    planks_a = merge_meshes([
+        make_box(0.985, 0.012, 0.23, (0.0, -0.006, -0.375)),
+        make_box(0.985, 0.012, 0.23, (0.0, -0.006, 0.125)),
+    ])
+    planks_b = merge_meshes([
+        make_box(0.985, 0.012, 0.23, (0.0, -0.006, -0.125)),
+        make_box(0.985, 0.012, 0.23, (0.0, -0.006, 0.375)),
+    ])
+    mesh = b.add_mesh("FloorTileMesh", [(base, mat_grout), (planks_a, mat_wood_a), (planks_b, mat_wood_b)])
     b.add_node("FloorTile", mesh=mesh)
     b.build_glb(out_path)
 
 
 def build_wall_plain(out_path: str) -> None:
     b = GLBBuilder("WallPlainScene")
-    mat_wall = b.add_material("WallWarmWhite", (0.94, 0.93, 0.90, 1.0), roughness=0.85, metallic=0.0)
-    mat_baseboard = b.add_material("BaseboardGray", (0.35, 0.37, 0.40, 1.0), roughness=0.65, metallic=0.05)
+    mat_wall = b.add_material("WallWarmPlaster", (0.91, 0.84, 0.75, 1.0), roughness=0.86, metallic=0.0)
+    mat_baseboard = b.add_material("BaseboardOak", (0.46, 0.32, 0.20, 1.0), roughness=0.65, metallic=0.0)
 
     wall = make_box(1.0, 2.8, 0.15, (0.0, 1.4, 0.0))
-    baseboard = make_box(1.0, 0.10, 0.165, (0.0, 0.05, 0.0))
+    baseboard = make_box(1.0, 0.11, 0.168, (0.0, 0.055, 0.0))
     mesh = b.add_mesh("WallPlainMesh", [(wall, mat_wall), (baseboard, mat_baseboard)])
     b.add_node("WallPlain", mesh=mesh)
     b.build_glb(out_path)
@@ -52,29 +60,39 @@ def build_wall_plain(out_path: str) -> None:
 
 def build_wall_window(out_path: str) -> None:
     b = GLBBuilder("WallWindowScene")
-    mat_wall = b.add_material("WallWarmWhite", (0.94, 0.93, 0.90, 1.0), roughness=0.85, metallic=0.0)
-    mat_baseboard = b.add_material("BaseboardGray", (0.35, 0.37, 0.40, 1.0), roughness=0.65, metallic=0.05)
-    mat_frame = b.add_material("WindowFrame", (0.18, 0.20, 0.23, 1.0), roughness=0.45, metallic=0.35)
+    mat_wall = b.add_material("WallWarmPlaster", (0.91, 0.84, 0.75, 1.0), roughness=0.86, metallic=0.0)
+    mat_baseboard = b.add_material("BaseboardOak", (0.46, 0.32, 0.20, 1.0), roughness=0.65, metallic=0.0)
+    mat_frame = b.add_material("WindowFrameWood", (0.36, 0.25, 0.17, 1.0), roughness=0.55, metallic=0.10)
     mat_glass = b.add_material(
-        "WindowGlass", (0.72, 0.86, 0.96, 0.35), roughness=0.10, metallic=0.05, alpha_mode="BLEND"
+        "WindowSunGlass",
+        (0.98, 0.94, 0.86, 0.22),
+        roughness=0.08,
+        metallic=0.05,
+        emissive=(0.14, 0.11, 0.07),
+        alpha_mode="BLEND",
     )
 
-    # Opening: x in [-0.36, 0.36] (0.72m wide), y in [0.95, 2.25] (1.30m tall)
+    # Tall grid-mullioned studio window: x in [-0.40, 0.40], y in [0.58, 2.48]
     wall_geo = merge_meshes([
-        make_box(1.0, 0.95, 0.15, (0.0, 0.475, 0.0)),       # bottom sill wall
-        make_box(1.0, 0.55, 0.15, (0.0, 2.525, 0.0)),       # top header wall
-        make_box(0.14, 1.30, 0.15, (-0.43, 1.60, 0.0)),     # left pillar
-        make_box(0.14, 1.30, 0.15, (0.43, 1.60, 0.0)),      # right pillar
+        make_box(1.0, 0.58, 0.15, (0.0, 0.29, 0.0)),        # lower sill wall
+        make_box(1.0, 0.32, 0.15, (0.0, 2.64, 0.0)),        # top header wall
+        make_box(0.10, 1.90, 0.15, (-0.45, 1.53, 0.0)),     # left pillar
+        make_box(0.10, 1.90, 0.15, (0.45, 1.53, 0.0)),      # right pillar
     ])
-    baseboard = make_box(1.0, 0.10, 0.165, (0.0, 0.05, 0.0))
+    baseboard = make_box(1.0, 0.11, 0.168, (0.0, 0.055, 0.0))
     frame_geo = merge_meshes([
-        make_box(0.76, 0.04, 0.17, (0.0, 0.95, 0.0)),       # sill
-        make_box(0.76, 0.04, 0.17, (0.0, 2.25, 0.0)),       # top frame
-        make_box(0.04, 1.30, 0.17, (-0.36, 1.60, 0.0)),     # left frame
-        make_box(0.04, 1.30, 0.17, (0.36, 1.60, 0.0)),      # right frame
-        make_box(0.025, 1.26, 0.04, (0.0, 1.60, 0.0)),      # center mullion
+        make_box(0.84, 0.05, 0.175, (0.0, 0.58, 0.0)),      # bottom sill
+        make_box(0.84, 0.05, 0.175, (0.0, 2.48, 0.0)),      # top arch header
+        make_box(0.05, 1.90, 0.175, (-0.40, 1.53, 0.0)),    # left jamb
+        make_box(0.05, 1.90, 0.175, (0.40, 1.53, 0.0)),     # right jamb
+        # Grid muntin bars so sunlight casts signature grid shadow patterns
+        make_box(0.028, 1.88, 0.06, (-0.135, 1.53, 0.0)),
+        make_box(0.028, 1.88, 0.06, (0.135, 1.53, 0.0)),
+        make_box(0.78, 0.028, 0.06, (0.0, 1.05, 0.0)),
+        make_box(0.78, 0.028, 0.06, (0.0, 1.53, 0.0)),
+        make_box(0.78, 0.028, 0.06, (0.0, 2.01, 0.0)),
     ])
-    glass_geo = make_box(0.68, 1.26, 0.015, (0.0, 1.60, 0.0))
+    glass_geo = make_box(0.76, 1.86, 0.012, (0.0, 1.53, 0.0))
 
     mesh = b.add_mesh("WallWindowMesh", [
         (wall_geo, mat_wall),
@@ -88,8 +106,8 @@ def build_wall_window(out_path: str) -> None:
 
 def build_wall_door(out_path: str) -> None:
     b = GLBBuilder("WallDoorScene")
-    mat_wall = b.add_material("WallWarmWhite", (0.94, 0.93, 0.90, 1.0), roughness=0.85, metallic=0.0)
-    mat_baseboard = b.add_material("BaseboardGray", (0.35, 0.37, 0.40, 1.0), roughness=0.65, metallic=0.05)
+    mat_wall = b.add_material("WallWarmPlaster", (0.91, 0.84, 0.75, 1.0), roughness=0.86, metallic=0.0)
+    mat_baseboard = b.add_material("BaseboardOak", (0.46, 0.32, 0.20, 1.0), roughness=0.65, metallic=0.0)
     mat_frame = b.add_material("DoorFrameWood", (0.45, 0.31, 0.20, 1.0), roughness=0.65, metallic=0.0)
 
     # Opening: x in [-0.42, 0.42] (0.84m wide), y in [0.0, 2.12]
@@ -147,32 +165,30 @@ def build_door_basic(out_path: str) -> None:
 
 def build_desk_basic(out_path: str) -> None:
     b = GLBBuilder("DeskBasicScene")
-    mat_wood = b.add_material("DeskOak", (0.76, 0.58, 0.38, 1.0), roughness=0.58, metallic=0.0)
-    mat_metal = b.add_material("DeskSteel", (0.16, 0.18, 0.21, 1.0), roughness=0.45, metallic=0.70)
+    mat_wood = b.add_material("DeskWalnut", (0.59, 0.42, 0.27, 1.0), roughness=0.62, metallic=0.0)
+    mat_leg = b.add_material("DeskOakLeg", (0.46, 0.32, 0.20, 1.0), roughness=0.68, metallic=0.0)
 
-    # 1.40m wide x 0.70m deep x 0.75m tall; origin at floor center
-    top = make_box(1.40, 0.035, 0.70, (0.0, 0.7325, 0.0))
+    # 1.40m wide x 0.70m deep x 0.75m tall warm wooden studio desk
+    top = make_box(1.40, 0.04, 0.70, (0.0, 0.73, 0.0))
     frame = merge_meshes([
-        # 4 legs
-        make_box(0.045, 0.715, 0.045, (-0.64, 0.3575, -0.29)),
-        make_box(0.045, 0.715, 0.045, (0.64, 0.3575, -0.29)),
-        make_box(0.045, 0.715, 0.045, (-0.64, 0.3575, 0.29)),
-        make_box(0.045, 0.715, 0.045, (0.64, 0.3575, 0.29)),
-        # Side & back crossbars
-        make_box(0.035, 0.035, 0.58, (-0.64, 0.69, 0.0)),
-        make_box(0.035, 0.035, 0.58, (0.64, 0.69, 0.0)),
-        make_box(1.28, 0.08, 0.025, (0.0, 0.62, -0.28)),
+        make_box(0.05, 0.71, 0.05, (-0.64, 0.355, -0.29)),
+        make_box(0.05, 0.71, 0.05, (0.64, 0.355, -0.29)),
+        make_box(0.05, 0.71, 0.05, (-0.64, 0.355, 0.29)),
+        make_box(0.05, 0.71, 0.05, (0.64, 0.355, 0.29)),
+        make_box(0.04, 0.04, 0.58, (-0.64, 0.69, 0.0)),
+        make_box(0.04, 0.04, 0.58, (0.64, 0.69, 0.0)),
+        make_box(1.28, 0.14, 0.025, (0.0, 0.63, -0.29)),
     ])
-    mesh = b.add_mesh("DeskBasicMesh", [(top, mat_wood), (frame, mat_metal)])
+    mesh = b.add_mesh("DeskBasicMesh", [(top, mat_wood), (frame, mat_leg)])
     b.add_node("DeskBasic", mesh=mesh)
     b.build_glb(out_path)
 
 
 def build_chair_office(out_path: str) -> None:
     b = GLBBuilder("ChairOfficeScene")
-    mat_fabric = b.add_material("ChairFabric", (0.18, 0.22, 0.28, 1.0), roughness=0.82, metallic=0.0)
-    mat_frame = b.add_material("ChairFrame", (0.14, 0.15, 0.18, 1.0), roughness=0.45, metallic=0.55)
-    mat_accent = b.add_material("ChairAccent", (0.16, 0.65, 0.50, 1.0), roughness=0.50, metallic=0.10)
+    mat_fabric = b.add_material("ChairPeach", (0.86, 0.59, 0.45, 1.0), roughness=0.80, metallic=0.0)
+    mat_frame = b.add_material("ChairFrame", (0.20, 0.19, 0.20, 1.0), roughness=0.45, metallic=0.45)
+    mat_accent = b.add_material("ChairAccent", (0.94, 0.76, 0.62, 1.0), roughness=0.60, metallic=0.0)
 
     # 5-star base + gas lift
     base_parts = [make_cylinder(0.028, 0.028, 0.36, 10, (0.0, 0.24, 0.0))]
@@ -211,14 +227,14 @@ def build_chair_office(out_path: str) -> None:
 
 def build_monitor_basic(out_path: str) -> None:
     b = GLBBuilder("MonitorBasicScene")
-    mat_body = b.add_material("MonitorPlastic", (0.12, 0.13, 0.15, 1.0), roughness=0.45, metallic=0.25)
-    mat_stand = b.add_material("MonitorAluminum", (0.68, 0.70, 0.74, 1.0), roughness=0.30, metallic=0.80)
+    mat_body = b.add_material("MonitorPlastic", (0.15, 0.15, 0.17, 1.0), roughness=0.45, metallic=0.20)
+    mat_stand = b.add_material("MonitorAluminum", (0.70, 0.68, 0.66, 1.0), roughness=0.32, metallic=0.72)
     mat_screen = b.add_material(
-        "MonitorScreen",
-        (0.08, 0.14, 0.22, 1.0),
-        roughness=0.15,
-        metallic=0.10,
-        emissive=(0.04, 0.09, 0.16),
+        "MonitorScreenGlow",
+        (0.28, 0.64, 0.88, 1.0),
+        roughness=0.12,
+        metallic=0.05,
+        emissive=(0.18, 0.44, 0.72),
     )
 
     # Origin at bottom of stand (y = 0.0), screen faces +Z
@@ -287,8 +303,10 @@ def build_keyboard_mouse(out_path: str) -> None:
 
 def build_sofa_basic(out_path: str) -> None:
     b = GLBBuilder("SofaBasicScene")
-    mat_fabric = b.add_material("SofaTeal", (0.18, 0.42, 0.48, 1.0), roughness=0.82, metallic=0.0)
-    mat_wood = b.add_material("SofaLegsWood", (0.42, 0.28, 0.18, 1.0), roughness=0.65, metallic=0.0)
+    mat_fabric = b.add_material("SofaWarmSand", (0.82, 0.72, 0.60, 1.0), roughness=0.84, metallic=0.0)
+    mat_wood = b.add_material("SofaOakWood", (0.52, 0.36, 0.22, 1.0), roughness=0.65, metallic=0.0)
+    mat_pillow_y = b.add_material("PillowYellow", (0.94, 0.80, 0.34, 1.0), roughness=0.85, metallic=0.0)
+    mat_pillow_b = b.add_material("PillowTeal", (0.36, 0.56, 0.68, 1.0), roughness=0.85, metallic=0.0)
 
     # 1.50m wide x 0.74m deep x 0.76m tall, faces +Z
     legs = merge_meshes([
@@ -305,33 +323,48 @@ def build_sofa_basic(out_path: str) -> None:
         make_box(0.14, 0.30, 0.68, (-0.68, 0.41, 0.0)),    # left armrest
         make_box(0.14, 0.30, 0.68, (0.68, 0.41, 0.0)),     # right armrest
     ])
-    mesh = b.add_mesh("SofaBasicMesh", [(legs, mat_wood), (cushions, mat_fabric)])
+    pillow_y = make_tapered_box(0.24, 0.10, 0.20, 0.08, 0.24, (-0.42, 0.48, -0.06))
+    pillow_b = make_tapered_box(0.24, 0.10, 0.20, 0.08, 0.24, (0.42, 0.48, -0.06))
+    mesh = b.add_mesh("SofaBasicMesh", [
+        (legs, mat_wood),
+        (cushions, mat_fabric),
+        (pillow_y, mat_pillow_y),
+        (pillow_b, mat_pillow_b),
+    ])
     b.add_node("SofaBasic", mesh=mesh)
     b.build_glb(out_path)
 
 
 def build_plant_pot(out_path: str) -> None:
     b = GLBBuilder("PlantPotScene")
-    mat_pot = b.add_material("CeramicPot", (0.88, 0.85, 0.80, 1.0), roughness=0.55, metallic=0.0)
+    mat_pot = b.add_material("CeramicCream", (0.93, 0.90, 0.85, 1.0), roughness=0.45, metallic=0.0)
+    mat_pattern = b.add_material("CeramicCobalt", (0.28, 0.46, 0.72, 1.0), roughness=0.45, metallic=0.0)
     mat_soil = b.add_material("PlantSoil", (0.24, 0.17, 0.12, 1.0), roughness=0.95, metallic=0.0)
-    mat_stem = b.add_material("PlantStem", (0.32, 0.44, 0.24, 1.0), roughness=0.80, metallic=0.0)
-    mat_leaf = b.add_material("PlantLeaf", (0.18, 0.56, 0.34, 1.0), roughness=0.68, metallic=0.0)
+    mat_stem = b.add_material("PlantStem", (0.38, 0.50, 0.26, 1.0), roughness=0.80, metallic=0.0)
+    mat_leaf = b.add_material("PlantLeafWarm", (0.48, 0.68, 0.34, 1.0), roughness=0.70, metallic=0.0)
 
-    pot = make_cylinder(0.14, 0.18, 0.34, 12, (0.0, 0.17, 0.0))
-    soil = make_cylinder(0.16, 0.16, 0.04, 12, (0.0, 0.33, 0.0))
+    pot = make_cylinder(0.15, 0.19, 0.36, 14, (0.0, 0.18, 0.0))
+    # Decorative cobalt ceramic pattern spots around pot
+    pot_spots = merge_meshes([
+        make_uv_sphere(0.036, 0.038, 0.036, 6, 8, (0.175 * math.cos(i * math.pi / 3.0), 0.19, 0.175 * math.sin(i * math.pi / 3.0)))
+        for i in range(6)
+    ])
+    soil = make_cylinder(0.17, 0.17, 0.04, 12, (0.0, 0.35, 0.0))
     stems = merge_meshes([
-        make_cylinder(0.018, 0.014, 0.44, 8, (0.0, 0.54, 0.0)),
-        make_cylinder(0.014, 0.010, 0.34, 8, (-0.06, 0.49, 0.04)),
-        make_cylinder(0.014, 0.010, 0.36, 8, (0.06, 0.51, -0.04)),
+        make_cylinder(0.018, 0.014, 0.52, 8, (0.0, 0.58, 0.0)),
+        make_cylinder(0.014, 0.010, 0.40, 8, (-0.07, 0.52, 0.05)),
+        make_cylinder(0.014, 0.010, 0.42, 8, (0.07, 0.54, -0.05)),
     ])
     leaves = merge_meshes([
-        make_uv_sphere(0.14, 0.12, 0.14, 7, 10, (0.0, 0.78, 0.0)),
-        make_uv_sphere(0.11, 0.09, 0.11, 6, 9, (-0.11, 0.65, 0.07)),
-        make_uv_sphere(0.11, 0.09, 0.11, 6, 9, (0.11, 0.67, -0.07)),
-        make_uv_sphere(0.10, 0.08, 0.10, 6, 9, (0.06, 0.62, 0.11)),
+        make_uv_sphere(0.15, 0.11, 0.15, 7, 10, (0.0, 0.86, 0.0)),
+        make_uv_sphere(0.13, 0.08, 0.13, 6, 9, (-0.13, 0.72, 0.08)),
+        make_uv_sphere(0.13, 0.08, 0.13, 6, 9, (0.13, 0.74, -0.08)),
+        make_uv_sphere(0.11, 0.07, 0.11, 6, 9, (0.07, 0.66, 0.13)),
+        make_uv_sphere(0.11, 0.07, 0.11, 6, 9, (-0.08, 0.64, -0.11)),
     ])
     mesh = b.add_mesh("PlantPotMesh", [
         (pot, mat_pot),
+        (pot_spots, mat_pattern),
         (soil, mat_soil),
         (stems, mat_stem),
         (leaves, mat_leaf),
