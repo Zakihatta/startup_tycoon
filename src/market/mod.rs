@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::{
     company::CompanyState,
-    core::DayPassedMessage,
+    core::{DayPassedMessage, NotifyMessage},
     economy::{FinanceState, TransactionKind},
     product::{ProductPhase, ProductState},
 };
@@ -135,6 +135,7 @@ fn process_daily_market(
     mut company: ResMut<CompanyState>,
     mut market: ResMut<MarketState>,
     mut finance: ResMut<FinanceState>,
+    mut notify: MessageWriter<NotifyMessage>,
 ) {
     let Some(prod) = &product.active else {
         return;
@@ -152,6 +153,10 @@ fn process_daily_market(
                 snap.revenue,
                 TransactionKind::Revenue,
             );
+            notify.write(NotifyMessage::info(format!(
+                "Hari {}: {} user aktif (+${})",
+                ev.new_day, snap.active_users, snap.revenue
+            )));
         }
         company.reputation = (company.reputation + 0.15).min(100.0);
     }

@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     company::CompanyState,
-    core::{DayPassedMessage, GameClock},
+    core::{DayPassedMessage, GameClock, NotifyMessage},
     economy::{FinanceState, TransactionKind},
     product::{ProductPhase, ProductState},
 };
@@ -215,33 +215,41 @@ fn handle_employee_commands(
     mut employees: ResMut<EmployeeState>,
     mut finance: ResMut<FinanceState>,
     mut company: ResMut<CompanyState>,
+    mut notify: MessageWriter<NotifyMessage>,
 ) {
     for cmd in reader.read() {
         match cmd {
             EmployeeCommand::HireCandidate(idx) => {
-                if let Ok(profile) =
-                    employees.hire_candidate(*idx, clock.day, &mut finance, &mut company)
-                {
-                    commands.spawn((
-                        Transform::from_xyz(0.5, 0.0, 1.85),
-                        Visibility::default(),
-                        DeveloperNpc {
-                            employee_id: profile.id,
-                            waypoints: vec![
-                                Vec3::new(0.5, 0.0, 0.3),
-                                Vec3::new(1.3, 0.0, -0.35),
-                                Vec3::new(1.3, 0.0, -0.82),
-                            ],
-                            wp_index: 0,
-                            seated: false,
-                            facing_yaw: 0.0,
-                            active_anim: None,
-                        },
-                        WorldAssetRoot(
-                            asset_server
-                                .load(GltfAssetLabel::Scene(0).from_asset(DEVELOPER_ASSET)),
-                        ),
-                    ));
+                match employees.hire_candidate(*idx, clock.day, &mut finance, &mut company) {
+                    Ok(profile) => {
+                        notify.write(NotifyMessage::info(format!(
+                            "Developer '{}' bergabung ke tim!",
+                            profile.name
+                        )));
+                        commands.spawn((
+                            Transform::from_xyz(0.5, 0.0, 1.85),
+                            Visibility::default(),
+                            DeveloperNpc {
+                                employee_id: profile.id,
+                                waypoints: vec![
+                                    Vec3::new(0.5, 0.0, 0.3),
+                                    Vec3::new(1.3, 0.0, -0.35),
+                                    Vec3::new(1.3, 0.0, -0.82),
+                                ],
+                                wp_index: 0,
+                                seated: false,
+                                facing_yaw: 0.0,
+                                active_anim: None,
+                            },
+                            WorldAssetRoot(
+                                asset_server
+                                    .load(GltfAssetLabel::Scene(0).from_asset(DEVELOPER_ASSET)),
+                            ),
+                        ));
+                    }
+                    Err(err) => {
+                        notify.write(NotifyMessage::warn(err));
+                    }
                 }
             }
         }

@@ -25,8 +25,8 @@ T-23,MVP Core,M5 - Employee System,Engine/Code,"Sistem rekrutmen (hiring), gaji,
 T-24,MVP Core,M5 - Employee System,Engine/Code,"AI NPC sederhana (jalan ke kursi, duduk, animasi mengetik)",High,Done,src/employee/mod.rs; src/office.rs,Waypoint ke workstation 2 -> Sitting / Typing
 T-25,MVP Core,M6 - Market & Revenue,Engine/Code,"Simulasi pasar, pertumbuhan user, churn, & pendapatan produk",Must-Have,Done,src/market/mod.rs,"Demand wave, churn, pricing factor + 2 unit test"
 T-26,MVP Core,M6 - Market & Revenue,UI,UI Market & ringkasan tren pendapatan,High,Done,src/ui/mod.rs,Tab Market: kontrol harga $10/$15/$25 + riwayat 6 hari
-T-27,MVP Core,M7 - MVP Integration,UI,"Integrasi penuh panel Dashboard, Finance, Product, Employee, Hiring, Market",Must-Have,To Do,src/ui.rs (planned),Navigasi tab mulus di UI komputer
-T-28,MVP Core,M7 - MVP Integration,QA/Release,Balancing ekonomi & playtest penuh gameplay loop MVP,Must-Have,To Do,-,Plan -> Build -> Operate -> Analyze
+T-27,MVP Core,M7 - MVP Integration,UI,"Integrasi penuh panel Dashboard, Finance, Product, Employee, Hiring, Market",Must-Have,Done,src/ui/mod.rs; src/core/notifications.rs,"5 tab berikon, rename startup, toast notifikasi"
+T-28,MVP Core,M7 - MVP Integration,QA/Release,Balancing ekonomi & playtest penuh gameplay loop MVP,Must-Have,Done,src/main.rs (mvp_integration_tests),Test loop penuh lulus (12/12 test) mencapai profit
 T-29,Post-MVP,M8 - Office Expansion,Asset 3D,"Tambah aset furniture lanjutan (sofa, meeting table, whiteboard, tanaman, server)",Medium,To Do,assets/furniture/; assets/equipment/,Sesuai daftar Future di ASSETS_PREPARATION.md
 T-30,Post-MVP,M8 - Office Expansion,Engine/Code,Sistem beli/sewa ruang baru & grid building placement (1m),Medium,To Do,src/building.rs (planned),Pasang desk/chair/PC baru secara dinamis
 T-31,MVP Core,M9 - Save System,Engine/Code,"Implementasi Save/Load state perusahaan, karyawan, produk, & layout",Must-Have,To Do,src/save_system/ (planned),Serialisasi serde JSON/RON + validasi aset

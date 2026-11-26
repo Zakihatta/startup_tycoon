@@ -52,8 +52,8 @@ TASKS = [
     ("T-26", "MVP Core", "M6 - Market & Revenue", "UI", "UI Market & ringkasan tren pendapatan", "High", "Done", "src/ui/mod.rs", "Tab Market: kontrol harga $10/$15/$25 + riwayat 6 hari"),
 
     # M7 - Management UI & MVP Integration
-    ("T-27", "MVP Core", "M7 - MVP Integration", "UI", "Integrasi penuh panel Dashboard, Finance, Product, Employee, Hiring, Market", "Must-Have", "To Do", "src/ui.rs (planned)", "Navigasi tab mulus di UI komputer"),
-    ("T-28", "MVP Core", "M7 - MVP Integration", "QA/Release", "Balancing ekonomi & playtest penuh gameplay loop MVP", "Must-Have", "To Do", "-", "Plan -> Build -> Operate -> Analyze"),
+    ("T-27", "MVP Core", "M7 - MVP Integration", "UI", "Integrasi penuh panel Dashboard, Finance, Product, Employee, Hiring, Market", "Must-Have", "Done", "src/ui/mod.rs; src/core/notifications.rs", "5 tab berikon, rename startup, toast notifikasi"),
+    ("T-28", "MVP Core", "M7 - MVP Integration", "QA/Release", "Balancing ekonomi & playtest penuh gameplay loop MVP", "Must-Have", "Done", "src/main.rs (mvp_integration_tests)", "Test loop penuh lulus (12/12 test) mencapai profit"),
 
     # M8 - Office Expansion
     ("T-29", "Post-MVP", "M8 - Office Expansion", "Asset 3D", "Tambah aset furniture lanjutan (sofa, meeting table, whiteboard, tanaman, server)", "Medium", "To Do", "assets/furniture/; assets/equipment/", "Sesuai daftar Future di ASSETS_PREPARATION.md"),

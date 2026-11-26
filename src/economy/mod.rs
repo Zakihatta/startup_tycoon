@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::core::DayPassedMessage;
+use crate::core::{DayPassedMessage, NotifyMessage};
 
 pub struct EconomyPlugin;
 
@@ -104,6 +104,7 @@ impl FinanceState {
 fn process_daily_economy(
     mut day_reader: MessageReader<DayPassedMessage>,
     mut finance: ResMut<FinanceState>,
+    mut notify: MessageWriter<NotifyMessage>,
 ) {
     for ev in day_reader.read() {
         let rent = finance.daily_rent;
@@ -113,6 +114,12 @@ fn process_daily_economy(
             -rent,
             TransactionKind::Rent,
         );
+        if finance.is_low_cash() {
+            notify.write(NotifyMessage::warn(format!(
+                "Hari {}: Kas menipis (${})!",
+                ev.new_day, finance.cash_balance
+            )));
+        }
     }
 }
 

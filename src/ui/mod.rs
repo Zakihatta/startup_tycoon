@@ -8,7 +8,7 @@ use bevy::{
 
 use crate::{
     company::CompanyState,
-    core::{GameClock, SimSpeed},
+    core::{GameClock, NotificationFeed, SimSpeed},
     economy::FinanceState,
     employee::{EmployeeCommand, EmployeeState},
     interaction::{ActiveInteractionTarget, InteractTriggered, InteractableKind},
@@ -40,6 +40,7 @@ impl Plugin for GameUiPlugin {
                     update_employee_tab,
                     update_market_tab,
                     update_finance_tab,
+                    update_toast_notifications,
                 ),
             );
     }
@@ -134,6 +135,12 @@ struct PriceButton(i64);
 #[derive(Component)]
 struct FinanceBodyText;
 
+#[derive(Component)]
+struct ToastPanel;
+
+#[derive(Component)]
+struct ToastText;
+
 fn format_money(amount: i64) -> String {
     let neg = amount < 0;
     let digits = amount.unsigned_abs().to_string();
@@ -154,7 +161,7 @@ fn format_money(amount: i64) -> String {
 
 fn hud_hint_string(mode_label: &str) -> String {
     format!(
-        "Startup Tycoon (M6) - Mode: {mode_label}\n\
+        "Startup Tycoon (M7 MVP) - Mode: {mode_label}\n\
          [Klik Kanan] Kunci Mouse | [ESC] Lepas Mouse\n\
          [WASD] Jalan | [Shift] Lari | [V] 1st/3rd Person | [E] Interaksi\n\
          [0/P] Pause | [1] 1x | [2] 2x"
@@ -165,6 +172,9 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
     let icon_money: Handle<Image> = asset_server.load("ui/icons/ui_icon_money.png");
     let icon_time: Handle<Image> = asset_server.load("ui/icons/ui_icon_time.png");
     let icon_company: Handle<Image> = asset_server.load("ui/icons/ui_icon_company.png");
+    let icon_product: Handle<Image> = asset_server.load("ui/icons/ui_icon_product.png");
+    let icon_employee: Handle<Image> = asset_server.load("ui/icons/ui_icon_employee.png");
+    let icon_settings: Handle<Image> = asset_server.load("ui/icons/ui_icon_settings.png");
 
     // Top-left controls & mode overlay
     commands.spawn((
@@ -211,7 +221,7 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
             })
             .with_children(|cash| {
                 cash.spawn((
-                    ImageNode::new(icon_money),
+                    ImageNode::new(icon_money.clone()),
                     Node {
                         width: px(20.0),
                         height: px(20.0),
@@ -404,7 +414,7 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                                 })
                                 .with_children(|title_row| {
                                     title_row.spawn((
-                                        ImageNode::new(icon_company),
+                                        ImageNode::new(icon_company.clone()),
                                         Node {
                                             width: px(24.0),
                                             height: px(24.0),
@@ -458,19 +468,22 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                             ..default()
                         })
                         .with_children(|tabs| {
-                            for (tab, label) in [
-                                (WorkstationTab::Overview, "Overview"),
-                                (WorkstationTab::Product, "Product"),
-                                (WorkstationTab::Employee, "Employee"),
-                                (WorkstationTab::Market, "Market"),
-                                (WorkstationTab::Finance, "Finance"),
+                            for (tab, label, icon) in [
+                                (WorkstationTab::Overview, "Overview", icon_company.clone()),
+                                (WorkstationTab::Product, "Product", icon_product),
+                                (WorkstationTab::Employee, "Employee", icon_employee),
+                                (WorkstationTab::Market, "Market", icon_settings),
+                                (WorkstationTab::Finance, "Finance", icon_money),
                             ] {
                                 tabs.spawn((
                                     TabButton(tab),
                                     Button,
                                     Hovered::default(),
                                     Node {
-                                        padding: UiRect::axes(px(14.0), px(7.0)),
+                                        flex_direction: FlexDirection::Row,
+                                        align_items: AlignItems::Center,
+                                        column_gap: px(6.0),
+                                        padding: UiRect::axes(px(12.0), px(7.0)),
                                         ..default()
                                     },
                                     BackgroundColor(Color::srgb(0.18, 0.23, 0.31)),
@@ -483,6 +496,14 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                                 )
                                 .with_children(|b| {
                                     b.spawn((
+                                        ImageNode::new(icon),
+                                        Node {
+                                            width: px(16.0),
+                                            height: px(16.0),
+                                            ..default()
+                                        },
+                                    ));
+                                    b.spawn((
                                         Text::new(label),
                                         TextFont {
                                             font_size: FontSize::Px(15.0),
@@ -494,22 +515,54 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                             }
                         });
 
-                    // Overview Body
-                    panel.spawn((
-                        TabPanel(WorkstationTab::Overview),
-                        OverviewBodyText,
-                        Text::new("Loading company overview..."),
-                        TextFont {
-                            font_size: FontSize::Px(15.0),
-                            ..default()
-                        },
-                        TextColor(Color::srgb(0.92, 0.94, 0.98)),
-                        Node {
-                            padding: UiRect::all(px(14.0)),
-                            ..default()
-                        },
-                        BackgroundColor(Color::srgb(0.14, 0.18, 0.25)),
-                    ));
+                    // Overview Tab Container
+                    panel
+                        .spawn((
+                            TabPanel(WorkstationTab::Overview),
+                            Node {
+                                flex_direction: FlexDirection::Column,
+                                row_gap: px(12.0),
+                                padding: UiRect::all(px(14.0)),
+                                ..default()
+                            },
+                            BackgroundColor(Color::srgb(0.14, 0.18, 0.25)),
+                        ))
+                        .with_children(|ov| {
+                            ov.spawn((
+                                OverviewBodyText,
+                                Text::new("Loading company overview..."),
+                                TextFont {
+                                    font_size: FontSize::Px(15.0),
+                                    ..default()
+                                },
+                                TextColor(Color::srgb(0.92, 0.94, 0.98)),
+                            ));
+
+                            ov.spawn((
+                                ActionButton,
+                                Button,
+                                Hovered::default(),
+                                Node {
+                                    align_self: AlignSelf::FlexStart,
+                                    padding: UiRect::axes(px(12.0), px(7.0)),
+                                    ..default()
+                                },
+                                BackgroundColor(Color::srgb(0.16, 0.52, 0.40)),
+                            ))
+                            .observe(|_: On<Activate>, mut company: ResMut<CompanyState>| {
+                                company.cycle_name();
+                            })
+                            .with_children(|b| {
+                                b.spawn((
+                                    Text::new("Ganti Nama Startup"),
+                                    TextFont {
+                                        font_size: FontSize::Px(13.5),
+                                        ..default()
+                                    },
+                                    TextColor(Color::WHITE),
+                                ));
+                            });
+                        });
 
                     // Product Tab Container
                     panel
@@ -899,6 +952,35 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                         TextColor(Color::srgb(0.68, 0.74, 0.82)),
                     ));
                 });
+        });
+
+    // Bottom-right Notification Toast Feed
+    commands
+        .spawn((
+            ToastPanel,
+            Visibility::Hidden,
+            Node {
+                position_type: PositionType::Absolute,
+                bottom: px(16.0),
+                right: px(16.0),
+                max_width: px(380.0),
+                padding: UiRect::axes(px(14.0), px(10.0)),
+                border: UiRect::all(px(1.0)),
+                ..default()
+            },
+            BackgroundColor(Color::srgba(0.07, 0.10, 0.15, 0.88)),
+            BorderColor::all(Color::srgb(0.22, 0.42, 0.56)),
+        ))
+        .with_children(|toast| {
+            toast.spawn((
+                ToastText,
+                Text::new(""),
+                TextFont {
+                    font_size: FontSize::Px(13.5),
+                    ..default()
+                },
+                TextColor(Color::srgb(0.92, 0.96, 1.0)),
+            ));
         });
 }
 
@@ -1380,4 +1462,50 @@ fn update_finance_tab(
             ledger
         );
     }
+}
+
+fn update_toast_notifications(
+    feed: Res<NotificationFeed>,
+    mut panel_q: Query<(&mut Visibility, &mut BorderColor), With<ToastPanel>>,
+    mut text_q: Query<(&mut Text, &mut TextColor), With<ToastText>>,
+) {
+    if !feed.is_changed() {
+        return;
+    }
+    let Ok((mut vis, mut border)) = panel_q.single_mut() else {
+        return;
+    };
+    let Ok((mut text, mut color)) = text_q.single_mut() else {
+        return;
+    };
+
+    if feed.items.is_empty() {
+        *vis = Visibility::Hidden;
+        text.0.clear();
+        return;
+    }
+
+    *vis = Visibility::Visible;
+    let has_warning = feed.items.iter().any(|i| i.is_warning);
+    *border = if has_warning {
+        BorderColor::all(Color::srgb(0.92, 0.36, 0.36))
+    } else {
+        BorderColor::all(Color::srgb(0.20, 0.72, 0.54))
+    };
+    *color = if has_warning {
+        TextColor(Color::srgb(1.0, 0.86, 0.82))
+    } else {
+        TextColor(Color::srgb(0.92, 0.96, 1.0))
+    };
+
+    let mut lines = String::new();
+    for item in feed.items.iter().rev() {
+        if !lines.is_empty() {
+            lines.push('\n');
+        }
+        let prefix = if item.is_warning { "[!] " } else { "• " };
+        lines.push_str(prefix);
+        lines.push_str(&item.text);
+    }
+    text.0 = lines;
 }

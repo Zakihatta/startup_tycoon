@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::{
     company::CompanyState,
-    core::{DayPassedMessage, GameClock, HourPassedMessage},
+    core::{DayPassedMessage, GameClock, HourPassedMessage, NotifyMessage},
     economy::{FinanceState, TransactionKind},
 };
 
@@ -151,14 +151,31 @@ fn handle_product_commands(
     mut product: ResMut<ProductState>,
     mut finance: ResMut<FinanceState>,
     mut company: ResMut<CompanyState>,
+    mut notify: MessageWriter<NotifyMessage>,
 ) {
     for cmd in reader.read() {
         match cmd {
             ProductCommand::StartProject { name, category } => {
-                let _ = product.start_project(name.clone(), category.clone(), clock.day, &mut finance);
+                match product.start_project(name.clone(), category.clone(), clock.day, &mut finance) {
+                    Ok(()) => {
+                        notify.write(NotifyMessage::info(format!(
+                            "Proyek '{name}' dimulai!"
+                        )));
+                    }
+                    Err(err) => {
+                        notify.write(NotifyMessage::warn(err));
+                    }
+                }
             }
             ProductCommand::LaunchProduct => {
-                product.launch(clock.day, &mut company);
+                if product.launch(clock.day, &mut company) {
+                    if let Some(p) = &product.active {
+                        notify.write(NotifyMessage::info(format!(
+                            "Produk '{}' resmi dirilis!",
+                            p.name
+                        )));
+                    }
+                }
             }
         }
     }
@@ -167,12 +184,34 @@ fn handle_product_commands(
 fn advance_product_hourly(
     mut hour_reader: MessageReader<HourPassedMessage>,
     mut product: ResMut<ProductState>,
+    mut notify: MessageWriter<NotifyMessage>,
 ) {
     for ev in hour_reader.read() {
-        // Work hours: 08:00 - 20:00 (or steady startup hustle)
+        // Work hours: 08:00 - 21:00
         let working = ev.hour >= 8 && ev.hour <= 21;
         if working {
+            let prev_phase = product.active.as_ref().map(|p| p.phase);
             product.advance_hour(true);
+            let new_phase = product.active.as_ref().map(|p| p.phase);
+            if prev_phase != new_phase
+                && let Some(p) = &product.active
+            {
+                match p.phase {
+                    ProductPhase::Testing => {
+                        notify.write(NotifyMessage::info(format!(
+                            "'{}' masuk tahap Testing / QA!",
+                            p.name
+                        )));
+                    }
+                    ProductPhase::ReadyToLaunch => {
+                        notify.write(NotifyMessage::info(format!(
+                            "'{}' SIAP RILIS! Buka tab Product.",
+                            p.name
+                        )));
+                    }
+                    _ => {}
+                }
+            }
         }
     }
 }
