@@ -1,0 +1,37 @@
+﻿ID,Fase,Milestone,Kategori,Task / Pekerjaan,Prioritas,Status,Output / File Terkait,Catatan
+T-01,Preproduction,M0 - Preproduction,Docs,"Susun dokumen visual direction, skala, & pipeline aset",Must-Have,Done,docs/ASSETS_PREPARATION.md,"Skala 1m = 1 unit, style stylized modern 3D"
+T-02,Preproduction,M0 - Preproduction,Toolchain,"Install Rust, Cargo, & WinLibs MinGW-w64 MSVCRT",Must-Have,Done,Cargo.toml; .cargo/config.toml,"rustc 1.100.0 GNU, jobs=2 untuk RAM 6GB"
+T-03,Preproduction,M0 - Preproduction,Asset 3D,Bangun pipeline generator .glb prosedural,High,Done,scripts/glb_lib.py,Builder glTF 2.0 tervalidasi
+T-04,Preproduction,M0 - Preproduction,Asset 3D,Buat karakter 3D Founder (.glb) + animasi Idle & Walk,High,Done,assets/characters/player/character_founder.glb,"Tinggi ~1.75m, hadap -Z, 2 animasi"
+T-05,Preproduction,M0 - Preproduction,Asset 3D,"Buat aset Environment modular M1 (floor, wall, window, door)",Must-Have,Done,assets/environment/**/*.glb,"5 file .glb grid 1m, pintu pivot engsel"
+T-06,Preproduction,M0 - Preproduction,Asset 3D,"Buat aset Furniture & Equipment M2 (desk, chair, monitor, PC, KB+mouse)",Must-Have,Done,assets/furniture/*.glb; assets/equipment/*.glb,5 file .glb proporsional 1m
+T-07,MVP Core,M1 - World & Player,Engine/Code,Inisialisasi Bevy 0.20 + auto-resolve path assets/,Must-Have,Done,src/main.rs,Jalan lewat cargo run & exe langsung
+T-08,MVP Core,M1 - World & Player,Engine/Code,Setup scene kantor awal 6m x 5m + lighting & shadows,Must-Have,Done,src/office.rs,Daylight directional + indoor point light
+T-09,MVP Core,M1 - World & Player,Engine/Code,"Implementasi kontroler karakter (WASD, Shift, mouse look, collision)",Must-Have,Done,src/player.rs,Wall-sliding collision + bounds
+T-10,MVP Core,M1 - World & Player,Engine/Code,Tambah toggle kamera 1st/3rd Person (V) + animasi Idle/Walk,High,Done,src/player.rs; src/main.rs,AnimationGraph + AnimationTransitions
+T-11,MVP Core,M2 - Office Interaction,Engine/Code,Tempatkan workstation awal di ruang kantor,Must-Have,Done,src/office.rs,"Desk, chair, monitor, PC, keyboard+mouse"
+T-12,MVP Core,M2 - Office Interaction,Engine/Code,Interaksi buka/tutup pintu dengan tombol E,Must-Have,Done,src/office.rs,Rotasi engsel mulus berdasarkan jarak
+T-13,MVP Core,M2 - Office Interaction,UI,Deteksi objek di depan crosshair + prompt UI dinamis ([E] ...),Must-Have,To Do,src/office.rs; src/main.rs,Tampilkan label objek yang bisa diinteraksi
+T-14,MVP Core,M2 - Office Interaction,UI,Interaksi workstation/komputer untuk buka menu manajemen,Must-Have,To Do,src/ui.rs (planned),Lepas cursor otomatis saat buka UI komputer
+T-15,MVP Core,M3 - Company & Finance,Engine/Code,"Sistem waktu simulasi (jam/hari/bulan, Pause, 1x, 2x)",Must-Have,To Do,src/simulation.rs (planned),Tick simulasi terpisah dari framerate
+T-16,MVP Core,M3 - Company & Finance,Engine/Code,"State perusahaan & keuangan (kas, sewa, gaji, pemasukan)",Must-Have,To Do,src/company.rs (planned),Laporan arus kas harian/bulanan
+T-17,MVP Core,M3 - Company & Finance,Asset 2D/UI,Siapkan aset UI icons (.png) & UI font (.ttf/.otf),Must-Have,To Do,assets/ui/icons/; assets/fonts/,"Money, company, employee, product, time, settings"
+T-18,MVP Core,M3 - Company & Finance,UI,"HUD utama (uang, tanggal, speed) + panel Finance/Report",Must-Have,To Do,src/ui.rs (planned),Bevy UI native panel
+T-19,MVP Core,M4 - Product Development,Engine/Code,"Model data & progres produk (fitur, kualitas, bug, rilis versi)",Must-Have,To Do,src/product.rs (planned),Siklus build & release produk software
+T-20,MVP Core,M4 - Product Development,UI,UI Product Development di layar komputer/manajemen,Must-Have,To Do,src/ui.rs (planned),"Pilih proyek, pantau progres, rilis"
+T-21,MVP Core,M5 - Employee System,Asset 3D,"Buat karakter 3D Developer (.glb) + animasi Idle, Walk, Sitting, Typing",Must-Have,To Do,assets/characters/employees/character_developer.glb,Skeleton/rig konsisten dengan Founder
+T-22,MVP Core,M5 - Employee System,Asset 2D/UI,Buat Employee Portrait (.png) untuk daftar kandidat & profil,Must-Have,To Do,assets/characters/employees/portraits/,Format PNG transparan/crop render
+T-23,MVP Core,M5 - Employee System,Engine/Code,"Sistem rekrutmen (hiring), gaji, & assign ke workstation",Must-Have,To Do,src/employee.rs (planned),Karyawan menambah kecepatan dev produk
+T-24,MVP Core,M5 - Employee System,Engine/Code,"AI NPC sederhana (jalan ke kursi, duduk, animasi mengetik)",High,To Do,src/employee.rs (planned),Navigasi sederhana dari pintu ke desk
+T-25,MVP Core,M6 - Market & Revenue,Engine/Code,"Simulasi pasar, pertumbuhan user, churn, & pendapatan produk",Must-Have,To Do,src/market.rs (planned),Menghubungkan kualitas produk ke revenue
+T-26,MVP Core,M6 - Market & Revenue,UI,UI Market & ringkasan tren pendapatan,High,To Do,src/ui.rs (planned),Grafik/statistik sederhana
+T-27,MVP Core,M7 - MVP Integration,UI,"Integrasi penuh panel Dashboard, Finance, Product, Employee, Hiring, Market",Must-Have,To Do,src/ui.rs (planned),Navigasi tab mulus di UI komputer
+T-28,MVP Core,M7 - MVP Integration,QA/Release,Balancing ekonomi & playtest penuh gameplay loop MVP,Must-Have,To Do,-,Plan -> Build -> Operate -> Analyze
+T-29,Post-MVP,M8 - Office Expansion,Asset 3D,"Tambah aset furniture lanjutan (sofa, meeting table, whiteboard, tanaman, server)",Medium,To Do,assets/furniture/; assets/equipment/,Sesuai daftar Future di ASSETS_PREPARATION.md
+T-30,Post-MVP,M8 - Office Expansion,Engine/Code,Sistem beli/sewa ruang baru & grid building placement (1m),Medium,To Do,src/building.rs (planned),Pasang desk/chair/PC baru secara dinamis
+T-31,MVP Core,M9 - Save System,Engine/Code,"Implementasi Save/Load state perusahaan, karyawan, produk, & layout",Must-Have,To Do,src/save_system/ (planned),Serialisasi serde JSON/RON + validasi aset
+T-32,Post-MVP,M10 - Polish & Audio,Audio,"Siapkan & integrasikan audio .ogg (UI click, footsteps, typing, door, ambience)",Low,To Do,assets/audio/,Bevy Audio / rodio
+T-33,Post-MVP,M10 - Polish & Audio,QA/Release,"Optimasi performa, perapihan ceiling/detail visual, & bugfixing",Medium,To Do,-,Evaluasi FPS & ukuran aset
+T-34,Deployment & Launch,Release & Launch,QA/Release,Compile release build (cargo build --release) untuk Windows/Linux/macOS,Must-Have,To Do,target/release/startup_tycon.exe,Opsional: WASM web demo
+T-35,Deployment & Launch,Release & Launch,QA/Release,Packaging folder rilis (executable + assets/ + lisensi) & uji di PC bersih,Must-Have,To Do,-,Pastikan tanpa dependency Rust eksternal
+T-36,Deployment & Launch,Release & Launch,QA/Release,"Siapkan halaman storefront (itch.io / Steam): screenshot, trailer, deskripsi",Must-Have,To Do,-,Rilis v0.1 MVP/Demo & kumpulkan feedback

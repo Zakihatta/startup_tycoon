@@ -1,0 +1,16 @@
+[package]
+name = "startup_tycon"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bevy = "0.20"
+
+# Tuned for fast, low-memory builds on 6 GB RAM while keeping 3D smooth
+[profile.dev]
+opt-level = 0
+debug = 0
+
+[profile.dev.package."*"]
+opt-level = 1
+debug = 0
