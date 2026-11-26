@@ -1,11 +1,15 @@
 use bevy::{asset::AssetPlugin, prelude::*};
 use std::path::PathBuf;
 
+mod interaction;
 mod office;
 mod player;
+mod ui;
 
+use interaction::InteractionPlugin;
 use office::OfficePlugin;
-use player::{CameraMode, PlayerController, PlayerPlugin};
+use player::PlayerPlugin;
+use ui::GameUiPlugin;
 
 fn resolve_assets_dir() -> String {
     if let Ok(exe_path) = std::env::current_exe()
@@ -48,87 +52,13 @@ fn main() {
                 })
                 .set(WindowPlugin {
                     primary_window: Some(Window {
-                        title: "Startup Tycoon - M1 Office Prototype".into(),
+                        title: "Startup Tycoon - M2 Office Prototype".into(),
                         resolution: (1280, 720).into(),
                         ..default()
                     }),
                     ..default()
                 }),
         )
-        .add_plugins((OfficePlugin, PlayerPlugin))
-        .add_systems(Startup, setup_hud)
-        .add_systems(Update, update_hud_mode)
+        .add_plugins((OfficePlugin, PlayerPlugin, InteractionPlugin, GameUiPlugin))
         .run();
-}
-
-#[derive(Component)]
-struct HudHintText;
-
-fn setup_hud(mut commands: Commands) {
-    // Controls hint overlay
-    commands.spawn((
-        HudHintText,
-        Text::new(
-            "Startup Tycoon (M1 Prototype) - Mode: 3rd Person\n\
-             [Klik Kiri] Kunci Mouse | [ESC] Lepas Mouse\n\
-             [WASD] Jalan | [Shift] Lari | [V] 1st/3rd Person | [E] Buka/Tutup Pintu",
-        ),
-        TextFont {
-            font_size: FontSize::Px(16.0),
-            ..default()
-        },
-        TextColor(Color::srgba(1.0, 1.0, 1.0, 0.92)),
-        BackgroundColor(Color::srgba(0.08, 0.10, 0.14, 0.65)),
-        Node {
-            position_type: PositionType::Absolute,
-            top: px(14.0),
-            left: px(14.0),
-            padding: UiRect::all(px(10.0)),
-            ..default()
-        },
-    ));
-
-    // Simple center crosshair dot
-    commands
-        .spawn((
-            Node {
-                position_type: PositionType::Absolute,
-                width: percent(100.0),
-                height: percent(100.0),
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                ..default()
-            },
-        ))
-        .with_children(|parent| {
-            parent.spawn((
-                Node {
-                    width: px(6.0),
-                    height: px(6.0),
-                    ..default()
-                },
-                BackgroundColor(Color::srgba(1.0, 1.0, 1.0, 0.8)),
-            ));
-        });
-}
-
-fn update_hud_mode(
-    player_q: Query<&PlayerController, Changed<PlayerController>>,
-    mut text_q: Query<&mut Text, With<HudHintText>>,
-) {
-    let Ok(ctrl) = player_q.single() else {
-        return;
-    };
-    let Ok(mut text) = text_q.single_mut() else {
-        return;
-    };
-    let mode_label = match ctrl.camera_mode {
-        CameraMode::FirstPerson => "1st Person",
-        CameraMode::ThirdPerson => "3rd Person",
-    };
-    text.0 = format!(
-        "Startup Tycoon (M1 Prototype) - Mode: {mode_label}\n\
-         [Klik Kiri] Kunci Mouse | [ESC] Lepas Mouse\n\
-         [WASD] Jalan | [Shift] Lari | [V] 1st/3rd Person | [E] Buka/Tutup Pintu"
-    );
 }

@@ -28,8 +28,8 @@ TASKS = [
     # M2 - Office Interaction
     ("T-11", "MVP Core", "M2 - Office Interaction", "Engine/Code", "Tempatkan workstation awal di ruang kantor", "Must-Have", "Done", "src/office.rs", "Desk, chair, monitor, PC, keyboard+mouse"),
     ("T-12", "MVP Core", "M2 - Office Interaction", "Engine/Code", "Interaksi buka/tutup pintu dengan tombol E", "Must-Have", "Done", "src/office.rs", "Rotasi engsel mulus berdasarkan jarak"),
-    ("T-13", "MVP Core", "M2 - Office Interaction", "UI", "Deteksi objek di depan crosshair + prompt UI dinamis ([E] ...)", "Must-Have", "To Do", "src/office.rs; src/main.rs", "Tampilkan label objek yang bisa diinteraksi"),
-    ("T-14", "MVP Core", "M2 - Office Interaction", "UI", "Interaksi workstation/komputer untuk buka menu manajemen", "Must-Have", "To Do", "src/ui.rs (planned)", "Lepas cursor otomatis saat buka UI komputer"),
+    ("T-13", "MVP Core", "M2 - Office Interaction", "UI", "Deteksi objek di depan crosshair + prompt UI dinamis ([E] ...)", "Must-Have", "Done", "src/interaction/mod.rs; src/ui/mod.rs", "Bekerja di mode 1st & 3rd Person"),
+    ("T-14", "MVP Core", "M2 - Office Interaction", "UI", "Interaksi workstation/komputer untuk buka menu manajemen", "Must-Have", "Done", "src/ui/mod.rs; src/player.rs", "Modal StartupOS v0.1 + lepas cursor otomatis"),
 
     # M3 - Company & Finance
     ("T-15", "MVP Core", "M3 - Company & Finance", "Engine/Code", "Sistem waktu simulasi (jam/hari/bulan, Pause, 1x, 2x)", "Must-Have", "To Do", "src/simulation.rs (planned)", "Tick simulasi terpisah dari framerate"),

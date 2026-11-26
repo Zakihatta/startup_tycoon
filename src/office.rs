@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use std::f32::consts::FRAC_PI_2;
 
-use crate::player::PlayerController;
+use crate::interaction::{InteractTriggered, Interactable, InteractableKind};
 
 pub struct OfficePlugin;
 
@@ -9,7 +9,7 @@ impl Plugin for OfficePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<OfficeColliders>()
             .add_systems(Startup, setup_office_scene)
-            .add_systems(Update, (toggle_door_interaction, animate_door));
+            .add_systems(Update, (handle_door_interactions, animate_door));
     }
 }
 
@@ -33,7 +33,6 @@ pub struct OfficeDoor {
     pub is_open: bool,
     pub current_angle: f32,
     pub target_angle: f32,
-    pub hinge_pos: Vec3,
 }
 
 fn setup_office_scene(
@@ -102,7 +101,12 @@ fn setup_office_scene(
                     is_open: false,
                     current_angle: 0.0,
                     target_angle: 0.0,
-                    hinge_pos,
+                },
+                Interactable {
+                    kind: InteractableKind::Door,
+                    prompt: "Buka Pintu".into(),
+                    range: 2.3,
+                    offset: Vec3::new(0.40, 1.0, 0.0),
                 },
             ));
         } else {
@@ -140,6 +144,12 @@ fn setup_office_scene(
             ),
         ),
         Transform::from_translation(desk_pos),
+        Interactable {
+            kind: InteractableKind::Workstation,
+            prompt: "Gunakan Workstation".into(),
+            range: 2.4,
+            offset: Vec3::new(0.0, 0.95, 0.0),
+        },
     ));
 
     // Office chair in front of desk (+Z side), facing -Z toward the desk
@@ -213,24 +223,22 @@ fn setup_office_scene(
     ];
 }
 
-fn toggle_door_interaction(
-    keys: Res<ButtonInput<KeyCode>>,
-    player_q: Query<&Transform, With<PlayerController>>,
-    mut door_q: Query<&mut OfficeDoor>,
+fn handle_door_interactions(
+    mut reader: MessageReader<InteractTriggered>,
+    mut door_q: Query<(&mut OfficeDoor, &mut Interactable)>,
 ) {
-    if !keys.just_pressed(KeyCode::KeyE) {
-        return;
-    }
-    let Ok(player_tf) = player_q.single() else {
-        return;
-    };
-    let player_chest = player_tf.translation + Vec3::new(0.0, 1.0, 0.0);
-
-    for mut door in &mut door_q {
-        let door_center = door.hinge_pos + Vec3::new(0.40, 1.0, 0.0);
-        if player_chest.distance(door_center) <= 2.4 {
+    for ev in reader.read() {
+        if ev.kind != InteractableKind::Door {
+            continue;
+        }
+        if let Ok((mut door, mut interactable)) = door_q.get_mut(ev.entity) {
             door.is_open = !door.is_open;
             door.target_angle = if door.is_open { -1.45 } else { 0.0 };
+            interactable.prompt = if door.is_open {
+                "Tutup Pintu".into()
+            } else {
+                "Buka Pintu".into()
+            };
         }
     }
 }

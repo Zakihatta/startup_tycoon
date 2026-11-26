@@ -11,8 +11,8 @@ T-09,MVP Core,M1 - World & Player,Engine/Code,"Implementasi kontroler karakter (
 T-10,MVP Core,M1 - World & Player,Engine/Code,Tambah toggle kamera 1st/3rd Person (V) + animasi Idle/Walk,High,Done,src/player.rs; src/main.rs,AnimationGraph + AnimationTransitions
 T-11,MVP Core,M2 - Office Interaction,Engine/Code,Tempatkan workstation awal di ruang kantor,Must-Have,Done,src/office.rs,"Desk, chair, monitor, PC, keyboard+mouse"
 T-12,MVP Core,M2 - Office Interaction,Engine/Code,Interaksi buka/tutup pintu dengan tombol E,Must-Have,Done,src/office.rs,Rotasi engsel mulus berdasarkan jarak
-T-13,MVP Core,M2 - Office Interaction,UI,Deteksi objek di depan crosshair + prompt UI dinamis ([E] ...),Must-Have,To Do,src/office.rs; src/main.rs,Tampilkan label objek yang bisa diinteraksi
-T-14,MVP Core,M2 - Office Interaction,UI,Interaksi workstation/komputer untuk buka menu manajemen,Must-Have,To Do,src/ui.rs (planned),Lepas cursor otomatis saat buka UI komputer
+T-13,MVP Core,M2 - Office Interaction,UI,Deteksi objek di depan crosshair + prompt UI dinamis ([E] ...),Must-Have,Done,src/interaction/mod.rs; src/ui/mod.rs,Bekerja di mode 1st & 3rd Person
+T-14,MVP Core,M2 - Office Interaction,UI,Interaksi workstation/komputer untuk buka menu manajemen,Must-Have,Done,src/ui/mod.rs; src/player.rs,Modal StartupOS v0.1 + lepas cursor otomatis
 T-15,MVP Core,M3 - Company & Finance,Engine/Code,"Sistem waktu simulasi (jam/hari/bulan, Pause, 1x, 2x)",Must-Have,To Do,src/simulation.rs (planned),Tick simulasi terpisah dari framerate
 T-16,MVP Core,M3 - Company & Finance,Engine/Code,"State perusahaan & keuangan (kas, sewa, gaji, pemasukan)",Must-Have,To Do,src/company.rs (planned),Laporan arus kas harian/bulanan
 T-17,MVP Core,M3 - Company & Finance,Asset 2D/UI,Siapkan aset UI icons (.png) & UI font (.ttf/.otf),Must-Have,To Do,assets/ui/icons/; assets/fonts/,"Money, company, employee, product, time, settings"

@@ -8,7 +8,7 @@ use std::{
     time::Duration,
 };
 
-use crate::office::OfficeColliders;
+use crate::{office::OfficeColliders, ui::WorkstationUiState};
 
 const FOUNDER_ASSET: &str = "characters/player/character_founder.glb";
 
@@ -114,10 +114,14 @@ fn spawn_player(
 }
 
 fn toggle_cursor_grab(
+    ui_state: Res<WorkstationUiState>,
     mut cursor_options: Single<&mut CursorOptions>,
     mouse: Res<ButtonInput<MouseButton>>,
     keys: Res<ButtonInput<KeyCode>>,
 ) {
+    if ui_state.is_open {
+        return;
+    }
     if mouse.just_pressed(MouseButton::Left) {
         cursor_options.visible = false;
         cursor_options.grab_mode = CursorGrabMode::Locked;
@@ -130,9 +134,10 @@ fn toggle_cursor_grab(
 
 fn toggle_camera_mode(
     keys: Res<ButtonInput<KeyCode>>,
+    ui_state: Res<WorkstationUiState>,
     mut player_q: Query<(&mut PlayerController, &mut Visibility), With<PlayerVisual>>,
 ) {
-    if !keys.just_pressed(KeyCode::KeyV) {
+    if ui_state.is_open || !keys.just_pressed(KeyCode::KeyV) {
         return;
     }
     let Ok((mut player, mut vis)) = player_q.single_mut() else {
@@ -154,11 +159,12 @@ fn toggle_camera_mode(
 }
 
 fn player_look(
+    ui_state: Res<WorkstationUiState>,
     cursor_options: Single<&CursorOptions>,
     mouse_motion: Res<AccumulatedMouseMotion>,
     mut player_q: Query<&mut PlayerController>,
 ) {
-    if cursor_options.grab_mode == CursorGrabMode::None {
+    if ui_state.is_open || cursor_options.grab_mode == CursorGrabMode::None {
         return;
     }
     let delta = mouse_motion.delta;
@@ -190,12 +196,19 @@ fn shortest_angle_diff(from: f32, to: f32) -> f32 {
 fn player_move(
     keys: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
+    ui_state: Res<WorkstationUiState>,
     colliders: Res<OfficeColliders>,
     mut player_q: Query<(&mut Transform, &mut PlayerController)>,
 ) {
     let Ok((mut tf, mut player)) = player_q.single_mut() else {
         return;
     };
+
+    if ui_state.is_open {
+        player.is_moving = false;
+        player.is_sprinting = false;
+        return;
+    }
 
     // Derive horizontal forward/right from camera yaw
     let yaw_rot = Quat::from_rotation_y(player.yaw);
