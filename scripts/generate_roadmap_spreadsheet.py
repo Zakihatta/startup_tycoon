@@ -48,8 +48,8 @@ TASKS = [
     ("T-24", "MVP Core", "M5 - Employee System", "Engine/Code", "AI NPC sederhana (jalan ke kursi, duduk, animasi mengetik)", "High", "Done", "src/employee/mod.rs; src/office.rs", "Waypoint ke workstation 2 -> Sitting / Typing"),
 
     # M6 - Market & Revenue
-    ("T-25", "MVP Core", "M6 - Market & Revenue", "Engine/Code", "Simulasi pasar, pertumbuhan user, churn, & pendapatan produk", "Must-Have", "To Do", "src/market.rs (planned)", "Menghubungkan kualitas produk ke revenue"),
-    ("T-26", "MVP Core", "M6 - Market & Revenue", "UI", "UI Market & ringkasan tren pendapatan", "High", "To Do", "src/ui.rs (planned)", "Grafik/statistik sederhana"),
+    ("T-25", "MVP Core", "M6 - Market & Revenue", "Engine/Code", "Simulasi pasar, pertumbuhan user, churn, & pendapatan produk", "Must-Have", "Done", "src/market/mod.rs", "Demand wave, churn, pricing factor + 2 unit test"),
+    ("T-26", "MVP Core", "M6 - Market & Revenue", "UI", "UI Market & ringkasan tren pendapatan", "High", "Done", "src/ui/mod.rs", "Tab Market: kontrol harga $10/$15/$25 + riwayat 6 hari"),
 
     # M7 - Management UI & MVP Integration
     ("T-27", "MVP Core", "M7 - MVP Integration", "UI", "Integrasi penuh panel Dashboard, Finance, Product, Employee, Hiring, Market", "Must-Have", "To Do", "src/ui.rs (planned)", "Navigasi tab mulus di UI komputer"),

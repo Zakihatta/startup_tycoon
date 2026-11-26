@@ -6,6 +6,7 @@ mod core;
 mod economy;
 mod employee;
 mod interaction;
+mod market;
 mod office;
 mod player;
 mod product;
@@ -16,6 +17,7 @@ use core::TimePlugin;
 use economy::EconomyPlugin;
 use employee::EmployeePlugin;
 use interaction::InteractionPlugin;
+use market::MarketPlugin;
 use office::OfficePlugin;
 use player::PlayerPlugin;
 use product::ProductPlugin;
@@ -62,7 +64,7 @@ fn main() {
                 })
                 .set(WindowPlugin {
                     primary_window: Some(Window {
-                        title: "Startup Tycoon - M5 Office Prototype".into(),
+                        title: "Startup Tycoon - M6 Office Prototype".into(),
                         resolution: (1280, 720).into(),
                         ..default()
                     }),
@@ -75,6 +77,7 @@ fn main() {
             EconomyPlugin,
             ProductPlugin,
             EmployeePlugin,
+            MarketPlugin,
             OfficePlugin,
             PlayerPlugin,
             InteractionPlugin,

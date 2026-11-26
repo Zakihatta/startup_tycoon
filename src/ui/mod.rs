@@ -12,6 +12,7 @@ use crate::{
     economy::FinanceState,
     employee::{EmployeeCommand, EmployeeState},
     interaction::{ActiveInteractionTarget, InteractTriggered, InteractableKind},
+    market::{MarketCommand, MarketState},
     player::{CameraMode, PlayerController},
     product::{ProductCommand, ProductPhase, ProductState, PRODUCT_DAILY_DEV_COST, PRODUCT_START_COST},
 };
@@ -25,18 +26,21 @@ impl Plugin for GameUiPlugin {
             .add_systems(
                 Update,
                 (
-                    handle_workstation_close,
-                    handle_workstation_interact,
+                    (handle_workstation_close, handle_workstation_interact).chain(),
                     update_hud_mode,
                     update_hud_status,
                     update_speed_button_styles,
                     update_tab_button_styles,
+                    update_price_button_styles,
                     update_action_button_styles,
                     update_interaction_prompt,
                     sync_workstation_modal_visibility,
-                    update_workstation_contents,
-                )
-                    .chain(),
+                    update_overview_tab,
+                    update_product_tab,
+                    update_employee_tab,
+                    update_market_tab,
+                    update_finance_tab,
+                ),
             );
     }
 }
@@ -47,6 +51,7 @@ pub enum WorkstationTab {
     Overview,
     Product,
     Employee,
+    Market,
     Finance,
 }
 
@@ -90,11 +95,11 @@ struct CloseWorkstationButton;
 #[derive(Component, Clone, Copy)]
 struct TabButton(WorkstationTab);
 
-#[derive(Component)]
-struct OverviewBodyText;
+#[derive(Component, Clone, Copy)]
+struct TabPanel(WorkstationTab);
 
 #[derive(Component)]
-struct ProductTabContainer;
+struct OverviewBodyText;
 
 #[derive(Component)]
 struct ProductBodyText;
@@ -112,9 +117,6 @@ struct ProductLaunchButton;
 struct ActionButton;
 
 #[derive(Component)]
-struct EmployeeTabContainer;
-
-#[derive(Component)]
 struct EmployeeBodyText;
 
 #[derive(Component)]
@@ -122,6 +124,12 @@ struct EmployeeHireGroup;
 
 #[derive(Component)]
 struct EmployeeRosterPortrait;
+
+#[derive(Component)]
+struct MarketBodyText;
+
+#[derive(Component, Clone, Copy)]
+struct PriceButton(i64);
 
 #[derive(Component)]
 struct FinanceBodyText;
@@ -146,7 +154,7 @@ fn format_money(amount: i64) -> String {
 
 fn hud_hint_string(mode_label: &str) -> String {
     format!(
-        "Startup Tycoon (M5) - Mode: {mode_label}\n\
+        "Startup Tycoon (M6) - Mode: {mode_label}\n\
          [Klik Kanan] Kunci Mouse | [ESC] Lepas Mouse\n\
          [WASD] Jalan | [Shift] Lari | [V] 1st/3rd Person | [E] Interaksi\n\
          [0/P] Pause | [1] 1x | [2] 2x"
@@ -454,6 +462,7 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                                 (WorkstationTab::Overview, "Overview"),
                                 (WorkstationTab::Product, "Product"),
                                 (WorkstationTab::Employee, "Employee"),
+                                (WorkstationTab::Market, "Market"),
                                 (WorkstationTab::Finance, "Finance"),
                             ] {
                                 tabs.spawn((
@@ -487,6 +496,7 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
 
                     // Overview Body
                     panel.spawn((
+                        TabPanel(WorkstationTab::Overview),
                         OverviewBodyText,
                         Text::new("Loading company overview..."),
                         TextFont {
@@ -504,7 +514,7 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                     // Product Tab Container
                     panel
                         .spawn((
-                            ProductTabContainer,
+                            TabPanel(WorkstationTab::Product),
                             Visibility::Hidden,
                             Node {
                                 display: Display::None,
@@ -640,7 +650,7 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                     // Employee Tab Container
                     panel
                         .spawn((
-                            EmployeeTabContainer,
+                            TabPanel(WorkstationTab::Employee),
                             Visibility::Hidden,
                             Node {
                                 display: Display::None,
@@ -791,8 +801,77 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                                 });
                         });
 
+                    // Market Tab Container
+                    panel
+                        .spawn((
+                            TabPanel(WorkstationTab::Market),
+                            Visibility::Hidden,
+                            Node {
+                                display: Display::None,
+                                flex_direction: FlexDirection::Column,
+                                row_gap: px(12.0),
+                                padding: UiRect::all(px(14.0)),
+                                ..default()
+                            },
+                            BackgroundColor(Color::srgb(0.14, 0.18, 0.25)),
+                        ))
+                        .with_children(|mkt_box| {
+                            mkt_box.spawn((
+                                MarketBodyText,
+                                Text::new("Loading market report..."),
+                                TextFont {
+                                    font_size: FontSize::Px(14.5),
+                                    ..default()
+                                },
+                                TextColor(Color::srgb(0.92, 0.94, 0.98)),
+                            ));
+
+                            mkt_box
+                                .spawn(Node {
+                                    flex_direction: FlexDirection::Row,
+                                    column_gap: px(8.0),
+                                    ..default()
+                                })
+                                .with_children(|pricing| {
+                                    for (price, label) in [
+                                        (10, "$10/bln (Ekonomis)"),
+                                        (15, "$15/bln (Standar)"),
+                                        (25, "$25/bln (Premium)"),
+                                    ] {
+                                        pricing
+                                            .spawn((
+                                                PriceButton(price),
+                                                Button,
+                                                Hovered::default(),
+                                                Node {
+                                                    padding: UiRect::axes(px(12.0), px(7.0)),
+                                                    ..default()
+                                                },
+                                                BackgroundColor(Color::srgb(0.18, 0.23, 0.31)),
+                                            ))
+                                            .observe(
+                                                move |_: On<Activate>,
+                                                      mut writer: MessageWriter<MarketCommand>| {
+                                                    writer.write(MarketCommand::SetPrice(price));
+                                                },
+                                            )
+                                            .with_children(|b| {
+                                                b.spawn((
+                                                    Text::new(label),
+                                                    TextFont {
+                                                        font_size: FontSize::Px(13.5),
+                                                        ..default()
+                                                    },
+                                                    TextColor(Color::WHITE),
+                                                ));
+                                            });
+                                    }
+                                });
+                        });
+
                     // Finance Body
                     panel.spawn((
+                        TabPanel(WorkstationTab::Finance),
                         FinanceBodyText,
                         Visibility::Hidden,
                         Text::new("Loading finance report..."),
@@ -811,8 +890,7 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
 
                     panel.spawn((
                         Text::new(
-                            "Tips: Rekrut Developer di tab Employee agar progres di tab Product lebih cepat. \
-                             Simulasi Pasar & Penjualan hadir di M6.",
+                            "Tips: Bangun produk di tab Product, rekrut Developer di tab Employee, rilis, lalu atur harga & pantau omzet di tab Market.",
                         ),
                         TextFont {
                             font_size: FontSize::Px(13.0),
@@ -940,6 +1018,21 @@ fn update_tab_button_styles(
     }
 }
 
+fn update_price_button_styles(
+    market: Res<MarketState>,
+    mut btn_q: Query<(&PriceButton, &Hovered, Option<&Pressed>, &mut BackgroundColor)>,
+) {
+    for (btn, hovered, pressed, mut bg) in &mut btn_q {
+        if pressed.is_some() || market.price_per_month == btn.0 {
+            *bg = BackgroundColor(Color::srgb(0.16, 0.56, 0.42));
+        } else if hovered.get() {
+            *bg = BackgroundColor(Color::srgb(0.28, 0.35, 0.46));
+        } else {
+            *bg = BackgroundColor(Color::srgb(0.18, 0.23, 0.31));
+        }
+    }
+}
+
 fn update_action_button_styles(
     mut btn_q: Query<(&Hovered, Option<&Pressed>, &mut BackgroundColor), With<ActionButton>>,
 ) {
@@ -980,52 +1073,9 @@ fn update_interaction_prompt(
 
 fn sync_workstation_modal_visibility(
     ui_state: Res<WorkstationUiState>,
-    mut modal_q: Query<&mut Visibility, (With<WorkstationModal>, Without<CrosshairDot>)>,
-    mut crosshair_q: Query<&mut Visibility, (With<CrosshairDot>, Without<WorkstationModal>)>,
-    mut overview_q: Query<
-        (&mut Visibility, &mut Node),
-        (
-            With<OverviewBodyText>,
-            Without<ProductTabContainer>,
-            Without<EmployeeTabContainer>,
-            Without<FinanceBodyText>,
-            Without<WorkstationModal>,
-            Without<CrosshairDot>,
-        ),
-    >,
-    mut product_q: Query<
-        (&mut Visibility, &mut Node),
-        (
-            With<ProductTabContainer>,
-            Without<OverviewBodyText>,
-            Without<EmployeeTabContainer>,
-            Without<FinanceBodyText>,
-            Without<WorkstationModal>,
-            Without<CrosshairDot>,
-        ),
-    >,
-    mut employee_q: Query<
-        (&mut Visibility, &mut Node),
-        (
-            With<EmployeeTabContainer>,
-            Without<OverviewBodyText>,
-            Without<ProductTabContainer>,
-            Without<FinanceBodyText>,
-            Without<WorkstationModal>,
-            Without<CrosshairDot>,
-        ),
-    >,
-    mut finance_q: Query<
-        (&mut Visibility, &mut Node),
-        (
-            With<FinanceBodyText>,
-            Without<OverviewBodyText>,
-            Without<ProductTabContainer>,
-            Without<EmployeeTabContainer>,
-            Without<WorkstationModal>,
-            Without<CrosshairDot>,
-        ),
-    >,
+    mut modal_q: Query<&mut Visibility, (With<WorkstationModal>, Without<CrosshairDot>, Without<TabPanel>)>,
+    mut crosshair_q: Query<&mut Visibility, (With<CrosshairDot>, Without<WorkstationModal>, Without<TabPanel>)>,
+    mut panels_q: Query<(&TabPanel, &mut Visibility, &mut Node), (Without<WorkstationModal>, Without<CrosshairDot>)>,
 ) {
     if !ui_state.is_changed() {
         return;
@@ -1045,48 +1095,25 @@ fn sync_workstation_modal_visibility(
         };
     }
 
-    let show_ov = ui_state.active_tab == WorkstationTab::Overview;
-    if let Ok((mut vis, mut node)) = overview_q.single_mut() {
-        *vis = if show_ov { Visibility::Inherited } else { Visibility::Hidden };
-        node.display = if show_ov { Display::Flex } else { Display::None };
-    }
-
-    let show_prod = ui_state.active_tab == WorkstationTab::Product;
-    if let Ok((mut vis, mut node)) = product_q.single_mut() {
-        *vis = if show_prod { Visibility::Inherited } else { Visibility::Hidden };
-        node.display = if show_prod { Display::Flex } else { Display::None };
-    }
-
-    let show_emp = ui_state.active_tab == WorkstationTab::Employee;
-    if let Ok((mut vis, mut node)) = employee_q.single_mut() {
-        *vis = if show_emp { Visibility::Inherited } else { Visibility::Hidden };
-        node.display = if show_emp { Display::Flex } else { Display::None };
-    }
-
-    let show_fin = ui_state.active_tab == WorkstationTab::Finance;
-    if let Ok((mut vis, mut node)) = finance_q.single_mut() {
-        *vis = if show_fin { Visibility::Inherited } else { Visibility::Hidden };
-        node.display = if show_fin { Display::Flex } else { Display::None };
+    for (panel, mut vis, mut node) in &mut panels_q {
+        let show = ui_state.active_tab == panel.0;
+        *vis = if show {
+            Visibility::Inherited
+        } else {
+            Visibility::Hidden
+        };
+        node.display = if show { Display::Flex } else { Display::None };
     }
 }
 
-fn update_workstation_contents(
+fn update_overview_tab(
     ui_state: Res<WorkstationUiState>,
-    asset_server: Res<AssetServer>,
     company: Res<CompanyState>,
     clock: Res<GameClock>,
     finance: Res<FinanceState>,
     product: Res<ProductState>,
-    employees: Res<EmployeeState>,
-    mut overview_q: Query<&mut Text, (With<OverviewBodyText>, Without<FinanceBodyText>, Without<ProductBodyText>, Without<EmployeeBodyText>)>,
-    mut product_q: Query<&mut Text, (With<ProductBodyText>, Without<OverviewBodyText>, Without<FinanceBodyText>, Without<EmployeeBodyText>)>,
-    mut employee_q: Query<&mut Text, (With<EmployeeBodyText>, Without<OverviewBodyText>, Without<ProductBodyText>, Without<FinanceBodyText>)>,
-    mut finance_q: Query<&mut Text, (With<FinanceBodyText>, Without<OverviewBodyText>, Without<ProductBodyText>, Without<EmployeeBodyText>)>,
-    mut starter_q: Query<(&mut Visibility, &mut Node), (With<ProductStarterGroup>, Without<ProductLaunchButton>, Without<ProductProgressBarFill>, Without<EmployeeHireGroup>, Without<EmployeeRosterPortrait>)>,
-    mut launch_q: Query<(&mut Visibility, &mut Node), (With<ProductLaunchButton>, Without<ProductStarterGroup>, Without<ProductProgressBarFill>, Without<EmployeeHireGroup>, Without<EmployeeRosterPortrait>)>,
-    mut fill_q: Query<&mut Node, (With<ProductProgressBarFill>, Without<ProductStarterGroup>, Without<ProductLaunchButton>, Without<EmployeeHireGroup>, Without<EmployeeRosterPortrait>)>,
-    mut hire_q: Query<(&mut Visibility, &mut Node), (With<EmployeeHireGroup>, Without<ProductStarterGroup>, Without<ProductLaunchButton>, Without<ProductProgressBarFill>, Without<EmployeeRosterPortrait>)>,
-    mut portrait_q: Query<(&mut Visibility, &mut Node, &mut ImageNode), (With<EmployeeRosterPortrait>, Without<ProductStarterGroup>, Without<ProductLaunchButton>, Without<ProductProgressBarFill>, Without<EmployeeHireGroup>)>,
+    market: Res<MarketState>,
+    mut overview_q: Query<&mut Text, With<OverviewBodyText>>,
 ) {
     if !ui_state.is_open {
         return;
@@ -1096,7 +1123,7 @@ fn update_workstation_contents(
         && !clock.is_changed()
         && !finance.is_changed()
         && !product.is_changed()
-        && !employees.is_changed()
+        && !market.is_changed()
     {
         return;
     }
@@ -1114,15 +1141,16 @@ fn update_workstation_contents(
         };
         text.0 = format!(
             "Ringkasan Perusahaan\n\
-             • Nama         : {}\n\
-             • Industri     : {}\n\
-             • Kantor       : {}\n\
-             • Hari & Waktu : Hari {} · {} ({})\n\
-             • Kas Saat Ini : {}\n\
-             • Laba/Rugi    : {}\n\
-             • Reputasi     : {:.1}\n\
-             • Produk Aktif : {}\n\
-             • Tim          : {} orang (Founder){}",
+             • Nama           : {}\n\
+             • Industri       : {}\n\
+             • Kantor         : {}\n\
+             • Hari & Waktu   : Hari {} · {} ({})\n\
+             • Kas Saat Ini   : {}\n\
+             • Laba/Rugi      : {}\n\
+             • Reputasi       : {:.1}\n\
+             • Produk Aktif   : {}\n\
+             • Pengguna Aktif : {} user (Omzet: {}/hari)\n\
+             • Tim            : {} orang{}",
             company.name,
             company.industry,
             company.office_tier,
@@ -1133,9 +1161,24 @@ fn update_workstation_contents(
             format_money(finance.net_profit()),
             company.reputation,
             product_summary,
+            market.active_users,
+            format_money(market.last_daily_revenue),
             company.team_size,
             warning,
         );
+    }
+}
+
+fn update_product_tab(
+    ui_state: Res<WorkstationUiState>,
+    product: Res<ProductState>,
+    mut product_q: Query<&mut Text, With<ProductBodyText>>,
+    mut starter_q: Query<(&mut Visibility, &mut Node), (With<ProductStarterGroup>, Without<ProductLaunchButton>, Without<ProductProgressBarFill>)>,
+    mut launch_q: Query<(&mut Visibility, &mut Node), (With<ProductLaunchButton>, Without<ProductStarterGroup>, Without<ProductProgressBarFill>)>,
+    mut fill_q: Query<&mut Node, (With<ProductProgressBarFill>, Without<ProductStarterGroup>, Without<ProductLaunchButton>)>,
+) {
+    if !ui_state.is_open || (!ui_state.is_changed() && !product.is_changed()) {
+        return;
     }
 
     if let Ok(mut text) = product_q.single_mut() {
@@ -1190,6 +1233,19 @@ fn update_workstation_contents(
         *l_vis = if show { Visibility::Inherited } else { Visibility::Hidden };
         l_node.display = if show { Display::Flex } else { Display::None };
     }
+}
+
+fn update_employee_tab(
+    ui_state: Res<WorkstationUiState>,
+    asset_server: Res<AssetServer>,
+    employees: Res<EmployeeState>,
+    mut employee_q: Query<&mut Text, With<EmployeeBodyText>>,
+    mut hire_q: Query<(&mut Visibility, &mut Node), (With<EmployeeHireGroup>, Without<EmployeeRosterPortrait>)>,
+    mut portrait_q: Query<(&mut Visibility, &mut Node, &mut ImageNode), (With<EmployeeRosterPortrait>, Without<EmployeeHireGroup>)>,
+) {
+    if !ui_state.is_open || (!ui_state.is_changed() && !employees.is_changed()) {
+        return;
+    }
 
     if let Ok(mut text) = employee_q.single_mut() {
         if let Some(emp) = employees.roster.first() {
@@ -1228,6 +1284,70 @@ fn update_workstation_contents(
             *p_vis = Visibility::Hidden;
             p_node.display = Display::None;
         }
+    }
+}
+
+fn update_market_tab(
+    ui_state: Res<WorkstationUiState>,
+    product: Res<ProductState>,
+    market: Res<MarketState>,
+    mut market_q: Query<&mut Text, With<MarketBodyText>>,
+) {
+    if !ui_state.is_open || (!ui_state.is_changed() && !product.is_changed() && !market.is_changed()) {
+        return;
+    }
+
+    if let Ok(mut text) = market_q.single_mut() {
+        let is_launched = product
+            .active
+            .as_ref()
+            .is_some_and(|p| p.phase == ProductPhase::Launched);
+
+        let mut hist_lines = String::new();
+        for snap in market.history.iter().rev().take(6) {
+            hist_lines.push_str(&format!(
+                "\n  [Hari {:>2}] +{} baru / -{} churn | {} aktif | +{}",
+                snap.day,
+                snap.new_users,
+                snap.churned_users,
+                snap.active_users,
+                format_money(snap.revenue),
+            ));
+        }
+        if hist_lines.is_empty() {
+            hist_lines.push_str(if is_launched {
+                "\n  Menunggu pergantian hari pertama pasca-rilis..."
+            } else {
+                "\n  Rilis produk terlebih dahulu di tab Product untuk mulai mendapat user."
+            });
+        }
+
+        text.0 = format!(
+            "Analisis Pasar & Penjualan\n\
+             • Kondisi Pasar    : {} ({:.2}x demand)\n\
+             • Harga Langganan  : {}/user/bln (Churn {:.1}%/hari)\n\
+             • Pengguna Aktif   : {} user\n\
+             • Omzet Hari Lalu  : {}\n\n\
+             Riwayat Harian:{}\n\n\
+             Pilih Harga Langganan (murah = pertumbuhan cepat, mahal = margin tinggi):",
+            market.demand_label(),
+            market.base_demand,
+            format_money(market.price_per_month),
+            market.churn_rate() * 100.0,
+            market.active_users,
+            format_money(market.last_daily_revenue),
+            hist_lines,
+        );
+    }
+}
+
+fn update_finance_tab(
+    ui_state: Res<WorkstationUiState>,
+    finance: Res<FinanceState>,
+    mut finance_q: Query<&mut Text, With<FinanceBodyText>>,
+) {
+    if !ui_state.is_open || (!ui_state.is_changed() && !finance.is_changed()) {
+        return;
     }
 
     if let Ok(mut text) = finance_q.single_mut() {
