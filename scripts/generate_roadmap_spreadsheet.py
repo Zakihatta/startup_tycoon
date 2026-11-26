@@ -42,10 +42,10 @@ TASKS = [
     ("T-20", "MVP Core", "M4 - Product Development", "UI", "UI Product Development di layar komputer/manajemen", "Must-Have", "Done", "src/ui/mod.rs", "Tab Product: 3 preset produk, progress bar, tombol Rilis"),
 
     # M5 - Employee System
-    ("T-21", "MVP Core", "M5 - Employee System", "Asset 3D", "Buat karakter 3D Developer (.glb) + animasi Idle, Walk, Sitting, Typing", "Must-Have", "To Do", "assets/characters/employees/character_developer.glb", "Skeleton/rig konsisten dengan Founder"),
-    ("T-22", "MVP Core", "M5 - Employee System", "Asset 2D/UI", "Buat Employee Portrait (.png) untuk daftar kandidat & profil", "Must-Have", "To Do", "assets/characters/employees/portraits/", "Format PNG transparan/crop render"),
-    ("T-23", "MVP Core", "M5 - Employee System", "Engine/Code", "Sistem rekrutmen (hiring), gaji, & assign ke workstation", "Must-Have", "To Do", "src/employee.rs (planned)", "Karyawan menambah kecepatan dev produk"),
-    ("T-24", "MVP Core", "M5 - Employee System", "Engine/Code", "AI NPC sederhana (jalan ke kursi, duduk, animasi mengetik)", "High", "To Do", "src/employee.rs (planned)", "Navigasi sederhana dari pintu ke desk"),
+    ("T-21", "MVP Core", "M5 - Employee System", "Asset 3D", "Buat karakter 3D Developer (.glb) + animasi Idle, Walk, Sitting, Typing", "Must-Have", "Done", "assets/characters/employees/character_developer.glb", "4 animasi tervalidasi, skala 1.75m"),
+    ("T-22", "MVP Core", "M5 - Employee System", "Asset 2D/UI", "Buat Employee Portrait (.png) untuk daftar kandidat & profil", "Must-Have", "Done", "assets/characters/employees/portraits/", "developer_01.png & developer_02.png (128x128 RGBA)"),
+    ("T-23", "MVP Core", "M5 - Employee System", "Engine/Code", "Sistem rekrutmen (hiring), gaji, & assign ke workstation", "Must-Have", "Done", "src/employee/mod.rs; src/ui/mod.rs", "Tab Employee + gaji harian + bonus produktivitas"),
+    ("T-24", "MVP Core", "M5 - Employee System", "Engine/Code", "AI NPC sederhana (jalan ke kursi, duduk, animasi mengetik)", "High", "Done", "src/employee/mod.rs; src/office.rs", "Waypoint ke workstation 2 -> Sitting / Typing"),
 
     # M6 - Market & Revenue
     ("T-25", "MVP Core", "M6 - Market & Revenue", "Engine/Code", "Simulasi pasar, pertumbuhan user, churn, & pendapatan produk", "Must-Have", "To Do", "src/market.rs (planned)", "Menghubungkan kualitas produk ke revenue"),
@@ -84,8 +84,8 @@ ASSETS = [
     ("Monitor Basic", "Equipment", "Procedural (scripts/generate_office_assets.py)", "GLB", "Project Original", "Tested", "assets/equipment/equipment_monitor_basic.glb", "0.62m lebar, emissive screen"),
     ("PC Basic", "Equipment", "Procedural (scripts/generate_office_assets.py)", "GLB", "Project Original", "Tested", "assets/equipment/equipment_pc_basic.glb", "Mid-tower dengan LED aksen"),
     ("Keyboard & Mouse", "Equipment", "Procedural (scripts/generate_office_assets.py)", "GLB", "Project Original", "Tested", "assets/equipment/equipment_keyboard_mouse.glb", "Set periferal meja"),
-    ("Developer Character", "Character", "TBD", "GLB", "TBD", "Needed", "assets/characters/employees/character_developer.glb", "Idle, Walk, Sitting, Typing (M5)"),
-    ("Employee Portraits", "UI", "TBD", "PNG", "TBD", "Needed", "assets/characters/employees/portraits/", "Untuk UI kandidat & profil (M5)"),
+    ("Developer Character", "Character", "Procedural (scripts/generate_character_glb.py)", "GLB", "Project Original", "Tested", "assets/characters/employees/character_developer.glb", "Idle, Walk, Sitting, Typing (M5)"),
+    ("Employee Portraits", "UI", "Procedural (scripts/generate_portraits.py)", "PNG", "Project Original", "Tested", "assets/characters/employees/portraits/", "developer_01.png & developer_02.png (M5)"),
     ("UI Icon Set", "UI", "Procedural (scripts/generate_ui_icons.py)", "PNG", "Project Original", "Tested", "assets/ui/icons/", "6 ikon 64x64 RGBA: money, time, company, employee, product, settings"),
     ("UI Font", "UI", "TBD", "TTF/OTF", "TBD", "Needed", "assets/fonts/", "Font UI berlisensi komersial (M3)"),
     ("Furniture Lanjutan", "Furniture", "TBD", "GLB", "TBD", "Needed", "assets/furniture/", "Sofa, meeting table, whiteboard, tanaman (M8)"),

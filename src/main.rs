@@ -4,6 +4,7 @@ use std::path::PathBuf;
 mod company;
 mod core;
 mod economy;
+mod employee;
 mod interaction;
 mod office;
 mod player;
@@ -13,6 +14,7 @@ mod ui;
 use company::CompanyPlugin;
 use core::TimePlugin;
 use economy::EconomyPlugin;
+use employee::EmployeePlugin;
 use interaction::InteractionPlugin;
 use office::OfficePlugin;
 use player::PlayerPlugin;
@@ -60,7 +62,7 @@ fn main() {
                 })
                 .set(WindowPlugin {
                     primary_window: Some(Window {
-                        title: "Startup Tycoon - M4 Office Prototype".into(),
+                        title: "Startup Tycoon - M5 Office Prototype".into(),
                         resolution: (1280, 720).into(),
                         ..default()
                     }),
@@ -72,6 +74,7 @@ fn main() {
             CompanyPlugin,
             EconomyPlugin,
             ProductPlugin,
+            EmployeePlugin,
             OfficePlugin,
             PlayerPlugin,
             InteractionPlugin,

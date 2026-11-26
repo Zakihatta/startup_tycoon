@@ -61,6 +61,9 @@ pub struct PlayerController {
 pub struct PlayerVisual;
 
 #[derive(Component)]
+pub struct FounderAnimPlayer;
+
+#[derive(Component)]
 pub struct PlayerCamera;
 
 #[derive(Resource)]
@@ -292,12 +295,33 @@ fn player_move(
     tf.rotation = Quat::from_rotation_y(player.facing_yaw);
 }
 
+fn has_player_ancestor(
+    mut current: Entity,
+    parents: &Query<&ChildOf>,
+    player_visuals: &Query<(), With<PlayerVisual>>,
+) -> bool {
+    loop {
+        if player_visuals.contains(current) {
+            return true;
+        }
+        match parents.get(current) {
+            Ok(child_of) => current = child_of.parent(),
+            Err(_) => return false,
+        }
+    }
+}
+
 fn setup_founder_animations(
     mut commands: Commands,
     mut anims: ResMut<FounderAnimations>,
+    parents: Query<&ChildOf>,
+    player_visuals: Query<(), With<PlayerVisual>>,
     mut players: Query<(Entity, &mut AnimationPlayer), Added<AnimationPlayer>>,
 ) {
     for (entity, mut player) in &mut players {
+        if !has_player_ancestor(entity, &parents, &player_visuals) {
+            continue;
+        }
         let mut transitions = AnimationTransitions::new();
         transitions
             .play(&mut player, anims.idle, Duration::ZERO)
@@ -305,8 +329,11 @@ fn setup_founder_animations(
 
         commands
             .entity(entity)
-            .insert(AnimationGraphHandle(anims.graph.clone()))
-            .insert(transitions);
+            .insert((
+                FounderAnimPlayer,
+                AnimationGraphHandle(anims.graph.clone()),
+                transitions,
+            ));
 
         anims.last_moving = Some(false);
     }
@@ -315,7 +342,7 @@ fn setup_founder_animations(
 fn sync_founder_animations(
     player_q: Query<&PlayerController>,
     mut anims: ResMut<FounderAnimations>,
-    mut anim_q: Query<(&mut AnimationPlayer, &mut AnimationTransitions)>,
+    mut anim_q: Query<(&mut AnimationPlayer, &mut AnimationTransitions), With<FounderAnimPlayer>>,
 ) {
     let Ok(ctrl) = player_q.single() else {
         return;

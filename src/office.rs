@@ -35,6 +35,64 @@ pub struct OfficeDoor {
     pub target_angle: f32,
 }
 
+fn spawn_workstation(
+    commands: &mut Commands,
+    asset_server: &AssetServer,
+    desk_pos: Vec3,
+    interactable: bool,
+) {
+    let mut desk_entity = commands.spawn((
+        WorldAssetRoot(
+            asset_server.load(
+                GltfAssetLabel::Scene(0).from_asset("furniture/furniture_desk_basic.glb"),
+            ),
+        ),
+        Transform::from_translation(desk_pos),
+    ));
+    if interactable {
+        desk_entity.insert(Interactable {
+            kind: InteractableKind::Workstation,
+            prompt: "Gunakan Workstation".into(),
+            range: 2.4,
+            offset: Vec3::new(0.0, 0.95, 0.0),
+        });
+    }
+
+    commands.spawn((
+        WorldAssetRoot(
+            asset_server.load(
+                GltfAssetLabel::Scene(0).from_asset("furniture/furniture_chair_office.glb"),
+            ),
+        ),
+        Transform::from_xyz(desk_pos.x, 0.0, desk_pos.z + 0.83),
+    ));
+
+    commands.spawn((
+        WorldAssetRoot(
+            asset_server.load(
+                GltfAssetLabel::Scene(0).from_asset("equipment/equipment_monitor_basic.glb"),
+            ),
+        ),
+        Transform::from_xyz(desk_pos.x, 0.75, desk_pos.z - 0.17),
+    ));
+    commands.spawn((
+        WorldAssetRoot(
+            asset_server.load(
+                GltfAssetLabel::Scene(0).from_asset("equipment/equipment_keyboard_mouse.glb"),
+            ),
+        ),
+        Transform::from_xyz(desk_pos.x, 0.75, desk_pos.z + 0.13),
+    ));
+    commands.spawn((
+        WorldAssetRoot(
+            asset_server.load(
+                GltfAssetLabel::Scene(0).from_asset("equipment/equipment_pc_basic.glb"),
+            ),
+        ),
+        Transform::from_xyz(desk_pos.x + 0.52, 0.75, desk_pos.z - 0.07),
+    ));
+}
+
 fn setup_office_scene(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -135,58 +193,9 @@ fn setup_office_scene(
         ));
     }
 
-    // Initial Workstation (M2 preview inside the M1 office)
-    let desk_pos = Vec3::new(-1.3, 0.0, -1.65);
-    commands.spawn((
-        WorldAssetRoot(
-            asset_server.load(
-                GltfAssetLabel::Scene(0).from_asset("furniture/furniture_desk_basic.glb"),
-            ),
-        ),
-        Transform::from_translation(desk_pos),
-        Interactable {
-            kind: InteractableKind::Workstation,
-            prompt: "Gunakan Workstation".into(),
-            range: 2.4,
-            offset: Vec3::new(0.0, 0.95, 0.0),
-        },
-    ));
-
-    // Office chair in front of desk (+Z side), facing -Z toward the desk
-    commands.spawn((
-        WorldAssetRoot(
-            asset_server.load(
-                GltfAssetLabel::Scene(0).from_asset("furniture/furniture_chair_office.glb"),
-            ),
-        ),
-        Transform::from_xyz(-1.3, 0.0, -0.82),
-    ));
-
-    // Monitor, keyboard/mouse, and PC on top of the desk (y = 0.75)
-    commands.spawn((
-        WorldAssetRoot(
-            asset_server.load(
-                GltfAssetLabel::Scene(0).from_asset("equipment/equipment_monitor_basic.glb"),
-            ),
-        ),
-        Transform::from_xyz(-1.3, 0.75, -1.82),
-    ));
-    commands.spawn((
-        WorldAssetRoot(
-            asset_server.load(
-                GltfAssetLabel::Scene(0).from_asset("equipment/equipment_keyboard_mouse.glb"),
-            ),
-        ),
-        Transform::from_xyz(-1.3, 0.75, -1.52),
-    ));
-    commands.spawn((
-        WorldAssetRoot(
-            asset_server.load(
-                GltfAssetLabel::Scene(0).from_asset("equipment/equipment_pc_basic.glb"),
-            ),
-        ),
-        Transform::from_xyz(-0.78, 0.75, -1.72),
-    ));
+    // Founder Workstation (left) & Developer Workstation (right)
+    spawn_workstation(&mut commands, &asset_server, Vec3::new(-1.3, 0.0, -1.65), true);
+    spawn_workstation(&mut commands, &asset_server, Vec3::new(1.3, 0.0, -1.65), false);
 
     // Lighting: warm daylight through windows + soft indoor ceiling light
     commands.spawn((
@@ -213,10 +222,17 @@ fn setup_office_scene(
     colliders.room_half_x = 2.68;
     colliders.room_half_z = 2.18;
     colliders.obstacles = vec![
-        // Desk + chair area
+        // Founder desk + chair area
         Aabb2d {
             min_x: -2.05,
             max_x: -0.55,
+            min_z: -2.05,
+            max_z: -0.60,
+        },
+        // Developer desk + chair area
+        Aabb2d {
+            min_x: 0.55,
+            max_x: 2.05,
             min_z: -2.05,
             max_z: -0.60,
         },

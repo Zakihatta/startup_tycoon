@@ -19,10 +19,10 @@ T-17,MVP Core,M3 - Company & Finance,Asset 2D/UI,Siapkan aset UI icons (.png) & 
 T-18,MVP Core,M3 - Company & Finance,UI,"HUD utama (uang, tanggal, speed) + panel Finance/Report",Must-Have,Done,src/ui/mod.rs,HUD top-right + tab Overview & Finance di StartupOS
 T-19,MVP Core,M4 - Product Development,Engine/Code,"Model data & progres produk (fitur, kualitas, bug, rilis versi)",Must-Have,Done,src/product/mod.rs,Siklus Dev->Testing->ReadyToLaunch->Launched + 2 test
 T-20,MVP Core,M4 - Product Development,UI,UI Product Development di layar komputer/manajemen,Must-Have,Done,src/ui/mod.rs,"Tab Product: 3 preset produk, progress bar, tombol Rilis"
-T-21,MVP Core,M5 - Employee System,Asset 3D,"Buat karakter 3D Developer (.glb) + animasi Idle, Walk, Sitting, Typing",Must-Have,To Do,assets/characters/employees/character_developer.glb,Skeleton/rig konsisten dengan Founder
-T-22,MVP Core,M5 - Employee System,Asset 2D/UI,Buat Employee Portrait (.png) untuk daftar kandidat & profil,Must-Have,To Do,assets/characters/employees/portraits/,Format PNG transparan/crop render
-T-23,MVP Core,M5 - Employee System,Engine/Code,"Sistem rekrutmen (hiring), gaji, & assign ke workstation",Must-Have,To Do,src/employee.rs (planned),Karyawan menambah kecepatan dev produk
-T-24,MVP Core,M5 - Employee System,Engine/Code,"AI NPC sederhana (jalan ke kursi, duduk, animasi mengetik)",High,To Do,src/employee.rs (planned),Navigasi sederhana dari pintu ke desk
+T-21,MVP Core,M5 - Employee System,Asset 3D,"Buat karakter 3D Developer (.glb) + animasi Idle, Walk, Sitting, Typing",Must-Have,Done,assets/characters/employees/character_developer.glb,"4 animasi tervalidasi, skala 1.75m"
+T-22,MVP Core,M5 - Employee System,Asset 2D/UI,Buat Employee Portrait (.png) untuk daftar kandidat & profil,Must-Have,Done,assets/characters/employees/portraits/,developer_01.png & developer_02.png (128x128 RGBA)
+T-23,MVP Core,M5 - Employee System,Engine/Code,"Sistem rekrutmen (hiring), gaji, & assign ke workstation",Must-Have,Done,src/employee/mod.rs; src/ui/mod.rs,Tab Employee + gaji harian + bonus produktivitas
+T-24,MVP Core,M5 - Employee System,Engine/Code,"AI NPC sederhana (jalan ke kursi, duduk, animasi mengetik)",High,Done,src/employee/mod.rs; src/office.rs,Waypoint ke workstation 2 -> Sitting / Typing
 T-25,MVP Core,M6 - Market & Revenue,Engine/Code,"Simulasi pasar, pertumbuhan user, churn, & pendapatan produk",Must-Have,To Do,src/market.rs (planned),Menghubungkan kualitas produk ke revenue
 T-26,MVP Core,M6 - Market & Revenue,UI,UI Market & ringkasan tren pendapatan,High,To Do,src/ui.rs (planned),Grafik/statistik sederhana
 T-27,MVP Core,M7 - MVP Integration,UI,"Integrasi penuh panel Dashboard, Finance, Product, Employee, Hiring, Market",Must-Have,To Do,src/ui.rs (planned),Navigasi tab mulus di UI komputer

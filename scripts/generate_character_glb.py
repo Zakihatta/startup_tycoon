@@ -1,11 +1,14 @@
 """
 Procedural 3D Character (.glb) Generator
-Generates a stylized low-poly Startup Founder character with PBR materials
-and two glTF 2.0 animations: 'Idle' and 'Walk'.
+Generates stylized low-poly characters:
+- Founder: assets/characters/player/character_founder.glb (Idle, Walk)
+- Developer: assets/characters/employees/character_developer.glb (Idle, Walk, Sitting, Typing)
 """
 
 import math
 import os
+from dataclasses import dataclass
+from typing import Tuple
 
 from glb_lib import (
     GLBBuilder,
@@ -18,27 +21,40 @@ from glb_lib import (
 )
 
 
-def build_character_glb(out_path: str) -> None:
-    b = GLBBuilder("CharacterScene")
+@dataclass
+class CharacterStyle:
+    scene_name: str
+    skin: Tuple[float, float, float, float]
+    hair: Tuple[float, float, float, float]
+    outerwear: Tuple[float, float, float, float]
+    inner_shirt: Tuple[float, float, float, float]
+    pants: Tuple[float, float, float, float]
+    shoes: Tuple[float, float, float, float]
+    accent: Tuple[float, float, float, float]
+    has_glasses: bool
+    include_work_anims: bool
 
-    # Materials (Startup Founder look: navy blazer, crisp white tee, slate chinos, white sneakers)
-    mat_skin = b.add_material("Skin", (0.92, 0.72, 0.58, 1.0), roughness=0.65, metallic=0.0)
-    mat_hair = b.add_material("Hair", (0.12, 0.09, 0.08, 1.0), roughness=0.80, metallic=0.0)
-    mat_blazer = b.add_material("Blazer", (0.13, 0.22, 0.38, 1.0), roughness=0.72, metallic=0.05)
-    mat_shirt = b.add_material("Shirt", (0.94, 0.95, 0.97, 1.0), roughness=0.75, metallic=0.0)
-    mat_pants = b.add_material("Pants", (0.20, 0.23, 0.28, 1.0), roughness=0.78, metallic=0.0)
-    mat_shoes = b.add_material("Shoes", (0.93, 0.93, 0.95, 1.0), roughness=0.55, metallic=0.05)
+
+def build_character_glb(out_path: str, style: CharacterStyle) -> None:
+    b = GLBBuilder(style.scene_name)
+
+    mat_skin = b.add_material("Skin", style.skin, roughness=0.65, metallic=0.0)
+    mat_hair = b.add_material("Hair", style.hair, roughness=0.80, metallic=0.0)
+    mat_outer = b.add_material("Outerwear", style.outerwear, roughness=0.72, metallic=0.05)
+    mat_shirt = b.add_material("Shirt", style.inner_shirt, roughness=0.75, metallic=0.0)
+    mat_pants = b.add_material("Pants", style.pants, roughness=0.78, metallic=0.0)
+    mat_shoes = b.add_material("Shoes", style.shoes, roughness=0.55, metallic=0.05)
     mat_sole = b.add_material("ShoeSole", (0.16, 0.18, 0.22, 1.0), roughness=0.85, metallic=0.0)
     mat_eye = b.add_material("Eyes", (0.06, 0.07, 0.09, 1.0), roughness=0.25, metallic=0.1)
     mat_glasses = b.add_material("Glasses", (0.10, 0.11, 0.14, 1.0), roughness=0.30, metallic=0.65)
-    mat_badge = b.add_material("BadgeAccent", (0.16, 0.70, 0.52, 1.0), roughness=0.40, metallic=0.15)
+    mat_badge = b.add_material("Accent", style.accent, roughness=0.40, metallic=0.15)
 
     # --- Meshes ---
     mesh_hips = b.add_mesh("HipsMesh", [
         (make_tapered_box(0.28, 0.18, 0.27, 0.17, 0.13, (0.0, 0.0, 0.0)), mat_pants),
     ])
 
-    torso_blazer = merge_meshes([
+    torso_outer = merge_meshes([
         make_tapered_box(0.29, 0.18, 0.36, 0.21, 0.40, (0.0, 0.22, 0.0)),
         make_box(0.05, 0.18, 0.03, (-0.065, 0.32, 0.105)),
         make_box(0.05, 0.18, 0.03, (0.065, 0.32, 0.105)),
@@ -49,7 +65,7 @@ def build_character_glb(out_path: str) -> None:
     ])
     torso_badge = make_box(0.055, 0.075, 0.015, (0.09, 0.26, 0.112))
     mesh_torso = b.add_mesh("TorsoMesh", [
-        (torso_blazer, mat_blazer),
+        (torso_outer, mat_outer),
         (torso_shirt, mat_shirt),
         (torso_badge, mat_badge),
     ])
@@ -69,23 +85,25 @@ def build_character_glb(out_path: str) -> None:
         make_uv_sphere(0.016, 0.020, 0.012, 6, 8, (-0.045, 0.145, 0.122)),
         make_uv_sphere(0.016, 0.020, 0.012, 6, 8, (0.045, 0.145, 0.122)),
     ])
-    head_glasses = merge_meshes([
-        make_box(0.062, 0.042, 0.012, (-0.046, 0.145, 0.132)),
-        make_box(0.062, 0.042, 0.012, (0.046, 0.145, 0.132)),
-        make_box(0.030, 0.010, 0.012, (0.0, 0.152, 0.132)),
-    ])
-    mesh_head = b.add_mesh("HeadMesh", [
+    head_prims = [
         (head_skin, mat_skin),
         (head_hair, mat_hair),
         (head_eyes, mat_eye),
-        (head_glasses, mat_glasses),
-    ])
+    ]
+    if style.has_glasses:
+        head_glasses = merge_meshes([
+            make_box(0.062, 0.042, 0.012, (-0.046, 0.145, 0.132)),
+            make_box(0.062, 0.042, 0.012, (0.046, 0.145, 0.132)),
+            make_box(0.030, 0.010, 0.012, (0.0, 0.152, 0.132)),
+        ])
+        head_prims.append((head_glasses, mat_glasses))
+    mesh_head = b.add_mesh("HeadMesh", head_prims)
 
     upper_arm_geo = merge_meshes([
         make_uv_sphere(0.055, 0.055, 0.055, 8, 10, (0.0, 0.0, 0.0)),
         make_cylinder(0.045, 0.052, 0.26, 10, (0.0, -0.13, 0.0)),
     ])
-    mesh_upper_arm = b.add_mesh("UpperArmMesh", [(upper_arm_geo, mat_blazer)])
+    mesh_upper_arm = b.add_mesh("UpperArmMesh", [(upper_arm_geo, mat_outer)])
 
     forearm_geo = merge_meshes([
         make_uv_sphere(0.042, 0.042, 0.042, 8, 10, (0.0, 0.0, 0.0)),
@@ -93,7 +111,7 @@ def build_character_glb(out_path: str) -> None:
     ])
     hand_geo = make_uv_sphere(0.038, 0.048, 0.032, 8, 10, (0.0, -0.25, 0.01))
     mesh_forearm = b.add_mesh("ForearmMesh", [
-        (forearm_geo, mat_blazer),
+        (forearm_geo, mat_outer),
         (hand_geo, mat_skin),
     ])
 
@@ -155,7 +173,7 @@ def build_character_glb(out_path: str) -> None:
         children=[n_hips],
     )
 
-    # --- Animation 1: Idle ---
+    # --- Animation 0: Idle ---
     idle_dur = 2.4
     idle_steps = 24
     idle_times = [idle_dur * i / idle_steps for i in range(idle_steps + 1)]
@@ -186,7 +204,7 @@ def build_character_glb(out_path: str) -> None:
         (n_forearm_r, "rotation", idle_times, idle_forearm_r_rot),
     ])
 
-    # --- Animation 2: Walk ---
+    # --- Animation 1: Walk ---
     walk_dur = 0.85
     walk_steps = 24
     walk_times = [walk_dur * i / walk_steps for i in range(walk_steps + 1)]
@@ -237,10 +255,119 @@ def build_character_glb(out_path: str) -> None:
         (n_forearm_r, "rotation", walk_times, w_farm_r),
     ])
 
+    if style.include_work_anims:
+        HIP_SIT_Y = 0.525
+        # --- Animation 2: Sitting (idle seated on office chair) ---
+        sit_dur = 2.0
+        sit_steps = 16
+        sit_times = [sit_dur * i / sit_steps for i in range(sit_steps + 1)]
+        s_hips_pos = [(0.0, HIP_SIT_Y, -0.02)] * (sit_steps + 1)
+        s_hips_rot = [euler_to_quat(0.0, 0.0, 0.0)] * (sit_steps + 1)
+        s_thigh = [euler_to_quat(-1.50, 0.0, 0.0)] * (sit_steps + 1)
+        s_shin = [euler_to_quat(1.50, 0.0, 0.0)] * (sit_steps + 1)
+        s_foot = [euler_to_quat(0.0, 0.0, 0.0)] * (sit_steps + 1)
+        s_torso, s_head, s_uarm_l, s_uarm_r, s_farm_l, s_farm_r = [], [], [], [], [], []
+        for i in range(sit_steps + 1):
+            p = 2.0 * math.pi * i / sit_steps
+            br = math.sin(p)
+            s_torso.append(euler_to_quat(0.04 + 0.02 * br, 0.0, 0.0))
+            s_head.append(euler_to_quat(0.04 - 0.02 * br, 0.06 * math.sin(p * 0.5), 0.0))
+            s_uarm_l.append(euler_to_quat(-0.22, 0.0, -0.10))
+            s_uarm_r.append(euler_to_quat(-0.22, 0.0, 0.10))
+            s_farm_l.append(euler_to_quat(-0.85 + 0.03 * br, 0.0, 0.0))
+            s_farm_r.append(euler_to_quat(-0.85 + 0.03 * br, 0.0, 0.0))
+
+        b.add_animation("Sitting", [
+            (n_hips, "translation", sit_times, s_hips_pos),
+            (n_hips, "rotation", sit_times, s_hips_rot),
+            (n_torso, "rotation", sit_times, s_torso),
+            (n_head, "rotation", sit_times, s_head),
+            (n_thigh_l, "rotation", sit_times, s_thigh),
+            (n_shin_l, "rotation", sit_times, s_shin),
+            (n_foot_l, "rotation", sit_times, s_foot),
+            (n_thigh_r, "rotation", sit_times, s_thigh),
+            (n_shin_r, "rotation", sit_times, s_shin),
+            (n_foot_r, "rotation", sit_times, s_foot),
+            (n_upper_arm_l, "rotation", sit_times, s_uarm_l),
+            (n_upper_arm_r, "rotation", sit_times, s_uarm_r),
+            (n_forearm_l, "rotation", sit_times, s_farm_l),
+            (n_forearm_r, "rotation", sit_times, s_farm_r),
+        ])
+
+        # --- Animation 3: Typing (seated working at keyboard) ---
+        typ_dur = 0.60
+        typ_steps = 16
+        typ_times = [typ_dur * i / typ_steps for i in range(typ_steps + 1)]
+        t_hips_pos = [(0.0, HIP_SIT_Y, -0.02)] * (typ_steps + 1)
+        t_hips_rot = [euler_to_quat(0.0, 0.0, 0.0)] * (typ_steps + 1)
+        t_thigh = [euler_to_quat(-1.50, 0.0, 0.0)] * (typ_steps + 1)
+        t_shin = [euler_to_quat(1.50, 0.0, 0.0)] * (typ_steps + 1)
+        t_foot = [euler_to_quat(0.0, 0.0, 0.0)] * (typ_steps + 1)
+        t_torso, t_head, t_uarm_l, t_uarm_r, t_farm_l, t_farm_r = [], [], [], [], [], []
+        for i in range(typ_steps + 1):
+            p = 2.0 * math.pi * i / typ_steps
+            tap_l = math.sin(p * 2.0)
+            tap_r = math.sin(p * 2.0 + math.pi)
+            t_torso.append(euler_to_quat(0.10, 0.015 * math.sin(p), 0.0))
+            t_head.append(euler_to_quat(0.14, 0.03 * math.sin(p), 0.0))
+            t_uarm_l.append(euler_to_quat(-0.58 + 0.05 * tap_l, -0.10, -0.06))
+            t_uarm_r.append(euler_to_quat(-0.58 + 0.05 * tap_r, 0.10, 0.06))
+            t_farm_l.append(euler_to_quat(-0.92 + 0.16 * tap_l, 0.0, 0.0))
+            t_farm_r.append(euler_to_quat(-0.92 + 0.16 * tap_r, 0.0, 0.0))
+
+        b.add_animation("Typing", [
+            (n_hips, "translation", typ_times, t_hips_pos),
+            (n_hips, "rotation", typ_times, t_hips_rot),
+            (n_torso, "rotation", typ_times, t_torso),
+            (n_head, "rotation", typ_times, t_head),
+            (n_thigh_l, "rotation", typ_times, t_thigh),
+            (n_shin_l, "rotation", typ_times, t_shin),
+            (n_foot_l, "rotation", typ_times, t_foot),
+            (n_thigh_r, "rotation", typ_times, t_thigh),
+            (n_shin_r, "rotation", typ_times, t_shin),
+            (n_foot_r, "rotation", typ_times, t_foot),
+            (n_upper_arm_l, "rotation", typ_times, t_uarm_l),
+            (n_upper_arm_r, "rotation", typ_times, t_uarm_r),
+            (n_forearm_l, "rotation", typ_times, t_farm_l),
+            (n_forearm_r, "rotation", typ_times, t_farm_r),
+        ])
+
     b.build_glb(out_path, root_nodes=[n_root])
 
 
+def main() -> None:
+    founder_style = CharacterStyle(
+        scene_name="FounderScene",
+        skin=(0.92, 0.72, 0.58, 1.0),
+        hair=(0.12, 0.09, 0.08, 1.0),
+        outerwear=(0.13, 0.22, 0.38, 1.0),
+        inner_shirt=(0.94, 0.95, 0.97, 1.0),
+        pants=(0.20, 0.23, 0.28, 1.0),
+        shoes=(0.93, 0.93, 0.95, 1.0),
+        accent=(0.16, 0.70, 0.52, 1.0),
+        has_glasses=True,
+        include_work_anims=False,
+    )
+    dev_style = CharacterStyle(
+        scene_name="DeveloperScene",
+        skin=(0.88, 0.68, 0.54, 1.0),
+        hair=(0.18, 0.13, 0.10, 1.0),
+        outerwear=(0.14, 0.44, 0.42, 1.0),
+        inner_shirt=(0.18, 0.20, 0.24, 1.0),
+        pants=(0.16, 0.19, 0.25, 1.0),
+        shoes=(0.86, 0.88, 0.90, 1.0),
+        accent=(0.22, 0.78, 0.92, 1.0),
+        has_glasses=True,
+        include_work_anims=True,
+    )
+
+    founder_out = os.path.join("assets", "characters", "player", "character_founder.glb")
+    dev_out = os.path.join("assets", "characters", "employees", "character_developer.glb")
+    build_character_glb(founder_out, founder_style)
+    build_character_glb(dev_out, dev_style)
+    print(f"Generated {founder_out} ({os.path.getsize(founder_out)} bytes)")
+    print(f"Generated {dev_out} ({os.path.getsize(dev_out)} bytes)")
+
+
 if __name__ == "__main__":
-    output = os.path.join("assets", "characters", "player", "character_founder.glb")
-    build_character_glb(output)
-    print(f"Generated {output} ({os.path.getsize(output)} bytes)")
+    main()

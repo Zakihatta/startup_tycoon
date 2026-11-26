@@ -10,6 +10,7 @@ use crate::{
     company::CompanyState,
     core::{GameClock, SimSpeed},
     economy::FinanceState,
+    employee::{EmployeeCommand, EmployeeState},
     interaction::{ActiveInteractionTarget, InteractTriggered, InteractableKind},
     player::{CameraMode, PlayerController},
     product::{ProductCommand, ProductPhase, ProductState, PRODUCT_DAILY_DEV_COST, PRODUCT_START_COST},
@@ -45,6 +46,7 @@ pub enum WorkstationTab {
     #[default]
     Overview,
     Product,
+    Employee,
     Finance,
 }
 
@@ -110,6 +112,18 @@ struct ProductLaunchButton;
 struct ActionButton;
 
 #[derive(Component)]
+struct EmployeeTabContainer;
+
+#[derive(Component)]
+struct EmployeeBodyText;
+
+#[derive(Component)]
+struct EmployeeHireGroup;
+
+#[derive(Component)]
+struct EmployeeRosterPortrait;
+
+#[derive(Component)]
 struct FinanceBodyText;
 
 fn format_money(amount: i64) -> String {
@@ -132,7 +146,7 @@ fn format_money(amount: i64) -> String {
 
 fn hud_hint_string(mode_label: &str) -> String {
     format!(
-        "Startup Tycoon (M4) - Mode: {mode_label}\n\
+        "Startup Tycoon (M5) - Mode: {mode_label}\n\
          [Klik Kanan] Kunci Mouse | [ESC] Lepas Mouse\n\
          [WASD] Jalan | [Shift] Lari | [V] 1st/3rd Person | [E] Interaksi\n\
          [0/P] Pause | [1] 1x | [2] 2x"
@@ -439,6 +453,7 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                             for (tab, label) in [
                                 (WorkstationTab::Overview, "Overview"),
                                 (WorkstationTab::Product, "Product"),
+                                (WorkstationTab::Employee, "Employee"),
                                 (WorkstationTab::Finance, "Finance"),
                             ] {
                                 tabs.spawn((
@@ -622,6 +637,160 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                                 });
                         });
 
+                    // Employee Tab Container
+                    panel
+                        .spawn((
+                            EmployeeTabContainer,
+                            Visibility::Hidden,
+                            Node {
+                                display: Display::None,
+                                flex_direction: FlexDirection::Column,
+                                row_gap: px(12.0),
+                                padding: UiRect::all(px(14.0)),
+                                ..default()
+                            },
+                            BackgroundColor(Color::srgb(0.14, 0.18, 0.25)),
+                        ))
+                        .with_children(|emp_box| {
+                            emp_box
+                                .spawn(Node {
+                                    flex_direction: FlexDirection::Row,
+                                    align_items: AlignItems::Center,
+                                    column_gap: px(12.0),
+                                    ..default()
+                                })
+                                .with_children(|row| {
+                                    row.spawn((
+                                        EmployeeRosterPortrait,
+                                        Visibility::Hidden,
+                                        ImageNode::new(
+                                            asset_server.load(
+                                                "characters/employees/portraits/developer_01.png",
+                                            ),
+                                        ),
+                                        Node {
+                                            display: Display::None,
+                                            width: px(64.0),
+                                            height: px(64.0),
+                                            ..default()
+                                        },
+                                    ));
+                                    row.spawn((
+                                        EmployeeBodyText,
+                                        Text::new("Belum ada karyawan."),
+                                        TextFont {
+                                            font_size: FontSize::Px(15.0),
+                                            ..default()
+                                        },
+                                        TextColor(Color::srgb(0.92, 0.94, 0.98)),
+                                    ));
+                                });
+
+                            emp_box
+                                .spawn((
+                                    EmployeeHireGroup,
+                                    Node {
+                                        flex_direction: FlexDirection::Row,
+                                        column_gap: px(12.0),
+                                        ..default()
+                                    },
+                                ))
+                                .with_children(|cands| {
+                                    for (idx, name, skill, salary, fee, portrait) in [
+                                        (
+                                            0usize,
+                                            "Raka Pratama",
+                                            1.2f32,
+                                            160i64,
+                                            600i64,
+                                            "characters/employees/portraits/developer_01.png",
+                                        ),
+                                        (
+                                            1usize,
+                                            "Sinta Wijaya",
+                                            1.8f32,
+                                            240i64,
+                                            1_000i64,
+                                            "characters/employees/portraits/developer_02.png",
+                                        ),
+                                    ] {
+                                        cands
+                                            .spawn((
+                                                Node {
+                                                    flex_direction: FlexDirection::Column,
+                                                    row_gap: px(8.0),
+                                                    padding: UiRect::all(px(12.0)),
+                                                    border: UiRect::all(px(1.0)),
+                                                    width: px(310.0),
+                                                    ..default()
+                                                },
+                                                BackgroundColor(Color::srgb(0.10, 0.13, 0.19)),
+                                                BorderColor::all(Color::srgb(0.24, 0.34, 0.46)),
+                                            ))
+                                            .with_children(|card| {
+                                                card.spawn(Node {
+                                                    flex_direction: FlexDirection::Row,
+                                                    align_items: AlignItems::Center,
+                                                    column_gap: px(10.0),
+                                                    ..default()
+                                                })
+                                                .with_children(|top| {
+                                                    top.spawn((
+                                                        ImageNode::new(asset_server.load(portrait)),
+                                                        Node {
+                                                            width: px(54.0),
+                                                            height: px(54.0),
+                                                            ..default()
+                                                        },
+                                                    ));
+                                                    top.spawn((
+                                                        Text::new(format!(
+                                                            "{name}\nRole: Developer\nSkill: {skill:.1}x | Gaji: {}/hr",
+                                                            format_money(salary)
+                                                        )),
+                                                        TextFont {
+                                                            font_size: FontSize::Px(13.5),
+                                                            ..default()
+                                                        },
+                                                        TextColor(Color::srgb(0.92, 0.95, 0.98)),
+                                                    ));
+                                                });
+
+                                                card.spawn((
+                                                    ActionButton,
+                                                    Button,
+                                                    Hovered::default(),
+                                                    Node {
+                                                        align_self: AlignSelf::FlexStart,
+                                                        padding: UiRect::axes(px(12.0), px(7.0)),
+                                                        ..default()
+                                                    },
+                                                    BackgroundColor(Color::srgb(0.16, 0.52, 0.40)),
+                                                ))
+                                                .observe(
+                                                    move |_: On<Activate>,
+                                                          mut writer: MessageWriter<EmployeeCommand>| {
+                                                        writer.write(EmployeeCommand::HireCandidate(idx));
+                                                    },
+                                                )
+                                                .with_children(|b| {
+                                                    b.spawn((
+                                                        Text::new(format!(
+                                                            "Rekrut ({})",
+                                                            format_money(fee)
+                                                        )),
+                                                        TextFont {
+                                                            font_size: FontSize::Px(13.5),
+                                                            ..default()
+                                                        },
+                                                        TextColor(Color::WHITE),
+                                                    ));
+                                                });
+                                            });
+                                    }
+                                });
+                        });
+
                     // Finance Body
                     panel.spawn((
                         FinanceBodyText,
@@ -642,8 +811,8 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
 
                     panel.spawn((
                         Text::new(
-                            "Tips: Mulai proyek di tab Product, lalu jalankan waktu (1x/2x). \
-                             Rekrutmen Developer (M5) & Penjualan Pasar (M6) hadir di milestone berikutnya.",
+                            "Tips: Rekrut Developer di tab Employee agar progres di tab Product lebih cepat. \
+                             Simulasi Pasar & Penjualan hadir di M6.",
                         ),
                         TextFont {
                             font_size: FontSize::Px(13.0),
@@ -818,6 +987,7 @@ fn sync_workstation_modal_visibility(
         (
             With<OverviewBodyText>,
             Without<ProductTabContainer>,
+            Without<EmployeeTabContainer>,
             Without<FinanceBodyText>,
             Without<WorkstationModal>,
             Without<CrosshairDot>,
@@ -828,6 +998,18 @@ fn sync_workstation_modal_visibility(
         (
             With<ProductTabContainer>,
             Without<OverviewBodyText>,
+            Without<EmployeeTabContainer>,
+            Without<FinanceBodyText>,
+            Without<WorkstationModal>,
+            Without<CrosshairDot>,
+        ),
+    >,
+    mut employee_q: Query<
+        (&mut Visibility, &mut Node),
+        (
+            With<EmployeeTabContainer>,
+            Without<OverviewBodyText>,
+            Without<ProductTabContainer>,
             Without<FinanceBodyText>,
             Without<WorkstationModal>,
             Without<CrosshairDot>,
@@ -839,6 +1021,7 @@ fn sync_workstation_modal_visibility(
             With<FinanceBodyText>,
             Without<OverviewBodyText>,
             Without<ProductTabContainer>,
+            Without<EmployeeTabContainer>,
             Without<WorkstationModal>,
             Without<CrosshairDot>,
         ),
@@ -874,6 +1057,12 @@ fn sync_workstation_modal_visibility(
         node.display = if show_prod { Display::Flex } else { Display::None };
     }
 
+    let show_emp = ui_state.active_tab == WorkstationTab::Employee;
+    if let Ok((mut vis, mut node)) = employee_q.single_mut() {
+        *vis = if show_emp { Visibility::Inherited } else { Visibility::Hidden };
+        node.display = if show_emp { Display::Flex } else { Display::None };
+    }
+
     let show_fin = ui_state.active_tab == WorkstationTab::Finance;
     if let Ok((mut vis, mut node)) = finance_q.single_mut() {
         *vis = if show_fin { Visibility::Inherited } else { Visibility::Hidden };
@@ -883,16 +1072,21 @@ fn sync_workstation_modal_visibility(
 
 fn update_workstation_contents(
     ui_state: Res<WorkstationUiState>,
+    asset_server: Res<AssetServer>,
     company: Res<CompanyState>,
     clock: Res<GameClock>,
     finance: Res<FinanceState>,
     product: Res<ProductState>,
-    mut overview_q: Query<&mut Text, (With<OverviewBodyText>, Without<FinanceBodyText>, Without<ProductBodyText>)>,
-    mut product_q: Query<&mut Text, (With<ProductBodyText>, Without<OverviewBodyText>, Without<FinanceBodyText>)>,
-    mut finance_q: Query<&mut Text, (With<FinanceBodyText>, Without<OverviewBodyText>, Without<ProductBodyText>)>,
-    mut starter_q: Query<(&mut Visibility, &mut Node), (With<ProductStarterGroup>, Without<ProductLaunchButton>, Without<ProductProgressBarFill>)>,
-    mut launch_q: Query<(&mut Visibility, &mut Node), (With<ProductLaunchButton>, Without<ProductStarterGroup>, Without<ProductProgressBarFill>)>,
-    mut fill_q: Query<&mut Node, (With<ProductProgressBarFill>, Without<ProductStarterGroup>, Without<ProductLaunchButton>)>,
+    employees: Res<EmployeeState>,
+    mut overview_q: Query<&mut Text, (With<OverviewBodyText>, Without<FinanceBodyText>, Without<ProductBodyText>, Without<EmployeeBodyText>)>,
+    mut product_q: Query<&mut Text, (With<ProductBodyText>, Without<OverviewBodyText>, Without<FinanceBodyText>, Without<EmployeeBodyText>)>,
+    mut employee_q: Query<&mut Text, (With<EmployeeBodyText>, Without<OverviewBodyText>, Without<ProductBodyText>, Without<FinanceBodyText>)>,
+    mut finance_q: Query<&mut Text, (With<FinanceBodyText>, Without<OverviewBodyText>, Without<ProductBodyText>, Without<EmployeeBodyText>)>,
+    mut starter_q: Query<(&mut Visibility, &mut Node), (With<ProductStarterGroup>, Without<ProductLaunchButton>, Without<ProductProgressBarFill>, Without<EmployeeHireGroup>, Without<EmployeeRosterPortrait>)>,
+    mut launch_q: Query<(&mut Visibility, &mut Node), (With<ProductLaunchButton>, Without<ProductStarterGroup>, Without<ProductProgressBarFill>, Without<EmployeeHireGroup>, Without<EmployeeRosterPortrait>)>,
+    mut fill_q: Query<&mut Node, (With<ProductProgressBarFill>, Without<ProductStarterGroup>, Without<ProductLaunchButton>, Without<EmployeeHireGroup>, Without<EmployeeRosterPortrait>)>,
+    mut hire_q: Query<(&mut Visibility, &mut Node), (With<EmployeeHireGroup>, Without<ProductStarterGroup>, Without<ProductLaunchButton>, Without<ProductProgressBarFill>, Without<EmployeeRosterPortrait>)>,
+    mut portrait_q: Query<(&mut Visibility, &mut Node, &mut ImageNode), (With<EmployeeRosterPortrait>, Without<ProductStarterGroup>, Without<ProductLaunchButton>, Without<ProductProgressBarFill>, Without<EmployeeHireGroup>)>,
 ) {
     if !ui_state.is_open {
         return;
@@ -902,6 +1096,7 @@ fn update_workstation_contents(
         && !clock.is_changed()
         && !finance.is_changed()
         && !product.is_changed()
+        && !employees.is_changed()
     {
         return;
     }
@@ -994,6 +1189,45 @@ fn update_workstation_contents(
             .is_some_and(|p| p.phase == ProductPhase::ReadyToLaunch);
         *l_vis = if show { Visibility::Inherited } else { Visibility::Hidden };
         l_node.display = if show { Display::Flex } else { Display::None };
+    }
+
+    if let Ok(mut text) = employee_q.single_mut() {
+        if let Some(emp) = employees.roster.first() {
+            text.0 = format!(
+                "Karyawan Aktif (1 / {} Workstation)\n\
+                 • Nama     : {}\n\
+                 • Role     : {}\n\
+                 • Skill    : {:.1}x (Bonus dev +{:.1}%/jam)\n\
+                 • Gaji     : -{}/hari\n\
+                 • Status   : {}",
+                employees.max_employees,
+                emp.name,
+                emp.role,
+                emp.skill,
+                emp.skill * 1.8,
+                format_money(emp.daily_salary),
+                emp.state.label(),
+            );
+        } else {
+            text.0 = "Belum ada karyawan. Pilih kandidat Developer untuk mempercepat pengembangan produk:".to_string();
+        }
+    }
+
+    if let Ok((mut h_vis, mut h_node)) = hire_q.single_mut() {
+        let show = employees.roster.len() < employees.max_employees;
+        *h_vis = if show { Visibility::Inherited } else { Visibility::Hidden };
+        h_node.display = if show { Display::Flex } else { Display::None };
+    }
+
+    if let Ok((mut p_vis, mut p_node, mut p_img)) = portrait_q.single_mut() {
+        if let Some(emp) = employees.roster.first() {
+            *p_vis = Visibility::Inherited;
+            p_node.display = Display::Flex;
+            p_img.image = asset_server.load(emp.portrait_path);
+        } else {
+            *p_vis = Visibility::Hidden;
+            p_node.display = Display::None;
+        }
     }
 
     if let Ok(mut text) = finance_q.single_mut() {
