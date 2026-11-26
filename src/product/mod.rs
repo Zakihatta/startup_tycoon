@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     company::CompanyState,
@@ -26,7 +27,7 @@ impl Plugin for ProductPlugin {
 pub const PRODUCT_START_COST: i64 = 1_500;
 pub const PRODUCT_DAILY_DEV_COST: i64 = 100;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ProductPhase {
     Development,
     Testing,
@@ -45,7 +46,7 @@ impl ProductPhase {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SoftwareProduct {
     pub name: String,
     pub category: String,
@@ -56,7 +57,7 @@ pub struct SoftwareProduct {
     pub launch_day: Option<u32>,
 }
 
-#[derive(Resource, Default, Debug)]
+#[derive(Resource, Clone, Default, Debug, Serialize, Deserialize)]
 pub struct ProductState {
     pub active: Option<SoftwareProduct>,
     pub total_productivity_bonus: f32,

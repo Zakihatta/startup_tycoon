@@ -15,6 +15,7 @@ use crate::{
     market::{MarketCommand, MarketState},
     player::{CameraMode, PlayerController},
     product::{ProductCommand, ProductPhase, ProductState, PRODUCT_DAILY_DEV_COST, PRODUCT_START_COST},
+    save_system::SaveGameCommand,
 };
 
 pub struct GameUiPlugin;
@@ -161,10 +162,10 @@ fn format_money(amount: i64) -> String {
 
 fn hud_hint_string(mode_label: &str) -> String {
     format!(
-        "Startup Tycoon (M7 MVP) - Mode: {mode_label}\n\
+        "Startup Tycoon (MVP) - Mode: {mode_label}\n\
          [Klik Kanan] Kunci Mouse | [ESC] Lepas Mouse\n\
          [WASD] Jalan | [Shift] Lari | [V] 1st/3rd Person | [E] Interaksi\n\
-         [0/P] Pause | [1] 1x | [2] 2x"
+         [0/P] Pause | [1] 1x | [2] 2x | [F5] Save | [F9] Load"
     )
 }
 
@@ -538,29 +539,92 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                                 TextColor(Color::srgb(0.92, 0.94, 0.98)),
                             ));
 
-                            ov.spawn((
-                                ActionButton,
-                                Button,
-                                Hovered::default(),
-                                Node {
-                                    align_self: AlignSelf::FlexStart,
-                                    padding: UiRect::axes(px(12.0), px(7.0)),
-                                    ..default()
-                                },
-                                BackgroundColor(Color::srgb(0.16, 0.52, 0.40)),
-                            ))
-                            .observe(|_: On<Activate>, mut company: ResMut<CompanyState>| {
-                                company.cycle_name();
+                            ov.spawn(Node {
+                                flex_direction: FlexDirection::Row,
+                                column_gap: px(8.0),
+                                ..default()
                             })
-                            .with_children(|b| {
-                                b.spawn((
-                                    Text::new("Ganti Nama Startup"),
-                                    TextFont {
-                                        font_size: FontSize::Px(13.5),
-                                        ..default()
-                                    },
-                                    TextColor(Color::WHITE),
-                                ));
+                            .with_children(|actions| {
+                                actions
+                                    .spawn((
+                                        ActionButton,
+                                        Button,
+                                        Hovered::default(),
+                                        Node {
+                                            padding: UiRect::axes(px(12.0), px(7.0)),
+                                            ..default()
+                                        },
+                                        BackgroundColor(Color::srgb(0.16, 0.52, 0.40)),
+                                    ))
+                                    .observe(|_: On<Activate>, mut company: ResMut<CompanyState>| {
+                                        company.cycle_name();
+                                    })
+                                    .with_children(|b| {
+                                        b.spawn((
+                                            Text::new("Ganti Nama Startup"),
+                                            TextFont {
+                                                font_size: FontSize::Px(13.5),
+                                                ..default()
+                                            },
+                                            TextColor(Color::WHITE),
+                                        ));
+                                    });
+
+                                actions
+                                    .spawn((
+                                        ActionButton,
+                                        Button,
+                                        Hovered::default(),
+                                        Node {
+                                            padding: UiRect::axes(px(12.0), px(7.0)),
+                                            ..default()
+                                        },
+                                        BackgroundColor(Color::srgb(0.16, 0.52, 0.40)),
+                                    ))
+                                    .observe(
+                                        |_: On<Activate>,
+                                         mut writer: MessageWriter<SaveGameCommand>| {
+                                            writer.write(SaveGameCommand::Save);
+                                        },
+                                    )
+                                    .with_children(|b| {
+                                        b.spawn((
+                                            Text::new("Simpan (F5)"),
+                                            TextFont {
+                                                font_size: FontSize::Px(13.5),
+                                                ..default()
+                                            },
+                                            TextColor(Color::WHITE),
+                                        ));
+                                    });
+
+                                actions
+                                    .spawn((
+                                        ActionButton,
+                                        Button,
+                                        Hovered::default(),
+                                        Node {
+                                            padding: UiRect::axes(px(12.0), px(7.0)),
+                                            ..default()
+                                        },
+                                        BackgroundColor(Color::srgb(0.16, 0.52, 0.40)),
+                                    ))
+                                    .observe(
+                                        |_: On<Activate>,
+                                         mut writer: MessageWriter<SaveGameCommand>| {
+                                            writer.write(SaveGameCommand::Load);
+                                        },
+                                    )
+                                    .with_children(|b| {
+                                        b.spawn((
+                                            Text::new("Muat (F9)"),
+                                            TextFont {
+                                                font_size: FontSize::Px(13.5),
+                                                ..default()
+                                            },
+                                            TextColor(Color::WHITE),
+                                        ));
+                                    });
                             });
                         });
 
@@ -1361,7 +1425,7 @@ fn update_employee_tab(
         if let Some(emp) = employees.roster.first() {
             *p_vis = Visibility::Inherited;
             p_node.display = Display::Flex;
-            p_img.image = asset_server.load(emp.portrait_path);
+            p_img.image = asset_server.load(&emp.portrait_path);
         } else {
             *p_vis = Visibility::Hidden;
             p_node.display = Display::None;

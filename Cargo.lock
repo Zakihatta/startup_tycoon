@@ -5006,6 +5006,8 @@ name = "startup_tycon"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "ron",
+ "serde",
 ]
 
 [[package]]

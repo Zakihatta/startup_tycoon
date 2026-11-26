@@ -60,7 +60,7 @@ TASKS = [
     ("T-30", "Post-MVP", "M8 - Office Expansion", "Engine/Code", "Sistem beli/sewa ruang baru & grid building placement (1m)", "Medium", "To Do", "src/building.rs (planned)", "Pasang desk/chair/PC baru secara dinamis"),
 
     # M9 - Save System (Included in MVP per docs/GDD/development/mvp_scope.md)
-    ("T-31", "MVP Core", "M9 - Save System", "Engine/Code", "Implementasi Save/Load state perusahaan, karyawan, produk, & layout", "Must-Have", "To Do", "src/save_system/ (planned)", "Serialisasi serde JSON/RON + validasi aset"),
+    ("T-31", "MVP Core", "M9 - Save System", "Engine/Code", "Implementasi Save/Load state perusahaan, karyawan, produk, & layout", "Must-Have", "Done", "src/save_system/mod.rs; src/ui/mod.rs", "Format RON (saves/savegame.ron), F5/F9 + validasi + 2 test"),
 
     # M10 - Polish & Audio
     ("T-32", "Post-MVP", "M10 - Polish & Audio", "Audio", "Siapkan & integrasikan audio .ogg (UI click, footsteps, typing, door, ambience)", "Low", "To Do", "assets/audio/", "Bevy Audio / rodio"),

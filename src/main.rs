@@ -10,6 +10,7 @@ mod market;
 mod office;
 mod player;
 mod product;
+mod save_system;
 mod ui;
 
 use company::CompanyPlugin;
@@ -21,6 +22,7 @@ use market::MarketPlugin;
 use office::OfficePlugin;
 use player::PlayerPlugin;
 use product::ProductPlugin;
+use save_system::SaveSystemPlugin;
 use ui::GameUiPlugin;
 
 fn resolve_assets_dir() -> String {
@@ -64,7 +66,7 @@ fn main() {
                 })
                 .set(WindowPlugin {
                     primary_window: Some(Window {
-                        title: "Startup Tycoon - M7 MVP Prototype".into(),
+                        title: "Startup Tycoon - MVP Prototype".into(),
                         resolution: (1280, 720).into(),
                         ..default()
                     }),
@@ -82,6 +84,7 @@ fn main() {
             OfficePlugin,
             PlayerPlugin,
             InteractionPlugin,
+            SaveSystemPlugin,
             GameUiPlugin,
         ))
         .run();

@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     company::CompanyState,
@@ -17,7 +18,7 @@ impl Plugin for MarketPlugin {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DailySalesSnapshot {
     pub day: u32,
     pub new_users: u32,
@@ -26,7 +27,7 @@ pub struct DailySalesSnapshot {
     pub revenue: i64,
 }
 
-#[derive(Resource, Debug)]
+#[derive(Resource, Clone, Debug, Serialize, Deserialize)]
 pub struct MarketState {
     pub base_demand: f32,
     pub price_per_month: i64,

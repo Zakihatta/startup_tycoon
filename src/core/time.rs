@@ -67,6 +67,13 @@ impl GameClock {
         format!("{:02}:{:02}", self.hour, self.minute)
     }
 
+    pub fn restore(&mut self, day: u32, hour: u8, minute: u8) {
+        self.day = day;
+        self.hour = hour;
+        self.minute = minute;
+        self.elapsed_accum = 0.0;
+    }
+
     /// Advances the clock by `delta_real_secs` * speed multiplier.
     /// Returns `(hours_crossed, days_crossed)`.
     pub fn tick(&mut self, delta_real_secs: f32) -> (Vec<(u32, u8)>, Vec<u32>) {

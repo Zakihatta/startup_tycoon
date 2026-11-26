@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::{
     f32::consts::PI,
     time::Duration,
@@ -35,7 +36,7 @@ impl Plugin for EmployeePlugin {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EmployeeWorkState {
     WalkingToDesk,
     Working,
@@ -62,14 +63,14 @@ pub struct HireCandidate {
     pub portrait_path: &'static str,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct EmployeeProfile {
     pub id: u32,
     pub name: String,
-    pub role: &'static str,
+    pub role: String,
     pub skill: f32,
     pub daily_salary: i64,
-    pub portrait_path: &'static str,
+    pub portrait_path: String,
     pub state: EmployeeWorkState,
 }
 
@@ -137,10 +138,10 @@ impl EmployeeState {
         let profile = EmployeeProfile {
             id: cand.id,
             name: cand.name,
-            role: "Developer",
+            role: "Developer".to_string(),
             skill: cand.skill,
             daily_salary: cand.daily_salary,
-            portrait_path: cand.portrait_path,
+            portrait_path: cand.portrait_path.to_string(),
             state: EmployeeWorkState::WalkingToDesk,
         };
         self.roster.push(profile.clone());
@@ -207,6 +208,43 @@ fn setup_developer_anim_graph(
     });
 }
 
+pub fn spawn_developer_npc(
+    commands: &mut Commands,
+    asset_server: &AssetServer,
+    employee_id: u32,
+    already_seated: bool,
+) {
+    let desk_chair_pos = Vec3::new(1.3, 0.0, -0.82);
+    let spawn_pos = if already_seated {
+        desk_chair_pos
+    } else {
+        Vec3::new(0.5, 0.0, 1.85)
+    };
+    let waypoints = if already_seated {
+        Vec::new()
+    } else {
+        vec![
+            Vec3::new(0.5, 0.0, 0.3),
+            Vec3::new(1.3, 0.0, -0.35),
+            desk_chair_pos,
+        ]
+    };
+
+    commands.spawn((
+        Transform::from_translation(spawn_pos),
+        Visibility::default(),
+        DeveloperNpc {
+            employee_id,
+            waypoints,
+            wp_index: 0,
+            seated: already_seated,
+            facing_yaw: 0.0,
+            active_anim: None,
+        },
+        WorldAssetRoot(asset_server.load(GltfAssetLabel::Scene(0).from_asset(DEVELOPER_ASSET))),
+    ));
+}
+
 fn handle_employee_commands(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -226,26 +264,7 @@ fn handle_employee_commands(
                             "Developer '{}' bergabung ke tim!",
                             profile.name
                         )));
-                        commands.spawn((
-                            Transform::from_xyz(0.5, 0.0, 1.85),
-                            Visibility::default(),
-                            DeveloperNpc {
-                                employee_id: profile.id,
-                                waypoints: vec![
-                                    Vec3::new(0.5, 0.0, 0.3),
-                                    Vec3::new(1.3, 0.0, -0.35),
-                                    Vec3::new(1.3, 0.0, -0.82),
-                                ],
-                                wp_index: 0,
-                                seated: false,
-                                facing_yaw: 0.0,
-                                active_anim: None,
-                            },
-                            WorldAssetRoot(
-                                asset_server
-                                    .load(GltfAssetLabel::Scene(0).from_asset(DEVELOPER_ASSET)),
-                            ),
-                        ));
+                        spawn_developer_npc(&mut commands, &asset_server, profile.id, false);
                     }
                     Err(err) => {
                         notify.write(NotifyMessage::warn(err));

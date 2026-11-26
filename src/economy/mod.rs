@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use serde::{Deserialize, Serialize};
 
 use crate::core::{DayPassedMessage, NotifyMessage};
 
@@ -11,7 +12,7 @@ impl Plugin for EconomyPlugin {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(dead_code)]
 pub enum TransactionKind {
     InitialCapital,
@@ -33,7 +34,7 @@ impl TransactionKind {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Transaction {
     pub day: u32,
     pub label: String,
@@ -41,7 +42,7 @@ pub struct Transaction {
     pub kind: TransactionKind,
 }
 
-#[derive(Resource, Debug)]
+#[derive(Resource, Clone, Debug, Serialize, Deserialize)]
 pub struct FinanceState {
     pub cash_balance: i64,
     pub daily_rent: i64,

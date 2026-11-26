@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use serde::{Deserialize, Serialize};
 
 pub struct CompanyPlugin;
 
@@ -9,7 +10,7 @@ impl Plugin for CompanyPlugin {
 }
 
 /// Authoritative company identity & progression (cash lives in FinanceState).
-#[derive(Resource, Debug)]
+#[derive(Resource, Clone, Debug, Serialize, Deserialize)]
 pub struct CompanyState {
     pub name: String,
     pub industry: String,
