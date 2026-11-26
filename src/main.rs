@@ -1,11 +1,17 @@
 use bevy::{asset::AssetPlugin, prelude::*};
 use std::path::PathBuf;
 
+mod company;
+mod core;
+mod economy;
 mod interaction;
 mod office;
 mod player;
 mod ui;
 
+use company::CompanyPlugin;
+use core::TimePlugin;
+use economy::EconomyPlugin;
 use interaction::InteractionPlugin;
 use office::OfficePlugin;
 use player::PlayerPlugin;
@@ -52,13 +58,24 @@ fn main() {
                 })
                 .set(WindowPlugin {
                     primary_window: Some(Window {
-                        title: "Startup Tycoon - M2 Office Prototype".into(),
+                        title: "Startup Tycoon - M3 Office Prototype".into(),
                         resolution: (1280, 720).into(),
                         ..default()
                     }),
                     ..default()
                 }),
         )
-        .add_plugins((OfficePlugin, PlayerPlugin, InteractionPlugin, GameUiPlugin))
+        .add_plugins((
+            TimePlugin,
+            CompanyPlugin,
+            EconomyPlugin,
+            OfficePlugin,
+            PlayerPlugin,
+            InteractionPlugin,
+            GameUiPlugin,
+        ))
         .run();
+
+    // Ensure background audio/gamepad threads exit cleanly when the window closes
+    std::process::exit(0);
 }

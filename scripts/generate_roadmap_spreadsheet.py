@@ -32,10 +32,10 @@ TASKS = [
     ("T-14", "MVP Core", "M2 - Office Interaction", "UI", "Interaksi workstation/komputer untuk buka menu manajemen", "Must-Have", "Done", "src/ui/mod.rs; src/player.rs", "Modal StartupOS v0.1 + lepas cursor otomatis"),
 
     # M3 - Company & Finance
-    ("T-15", "MVP Core", "M3 - Company & Finance", "Engine/Code", "Sistem waktu simulasi (jam/hari/bulan, Pause, 1x, 2x)", "Must-Have", "To Do", "src/simulation.rs (planned)", "Tick simulasi terpisah dari framerate"),
-    ("T-16", "MVP Core", "M3 - Company & Finance", "Engine/Code", "State perusahaan & keuangan (kas, sewa, gaji, pemasukan)", "Must-Have", "To Do", "src/company.rs (planned)", "Laporan arus kas harian/bulanan"),
-    ("T-17", "MVP Core", "M3 - Company & Finance", "Asset 2D/UI", "Siapkan aset UI icons (.png) & UI font (.ttf/.otf)", "Must-Have", "To Do", "assets/ui/icons/; assets/fonts/", "Money, company, employee, product, time, settings"),
-    ("T-18", "MVP Core", "M3 - Company & Finance", "UI", "HUD utama (uang, tanggal, speed) + panel Finance/Report", "Must-Have", "To Do", "src/ui.rs (planned)", "Bevy UI native panel"),
+    ("T-15", "MVP Core", "M3 - Company & Finance", "Engine/Code", "Sistem waktu simulasi (jam/hari/bulan, Pause, 1x, 2x)", "Must-Have", "Done", "src/core/time.rs", "Tick 15m independen framerate + 3 unit test"),
+    ("T-16", "MVP Core", "M3 - Company & Finance", "Engine/Code", "State perusahaan & keuangan (kas, sewa, gaji, pemasukan)", "Must-Have", "Done", "src/company/mod.rs; src/economy/mod.rs", "Ledger transaksi + sewa harian + 2 unit test"),
+    ("T-17", "MVP Core", "M3 - Company & Finance", "Asset 2D/UI", "Siapkan aset UI icons (.png) & UI font (.ttf/.otf)", "Must-Have", "In Progress", "assets/ui/icons/; scripts/generate_ui_icons.py", "6 ikon PNG selesai; font masih pakai default Bevy"),
+    ("T-18", "MVP Core", "M3 - Company & Finance", "UI", "HUD utama (uang, tanggal, speed) + panel Finance/Report", "Must-Have", "Done", "src/ui/mod.rs", "HUD top-right + tab Overview & Finance di StartupOS"),
 
     # M4 - Product Development
     ("T-19", "MVP Core", "M4 - Product Development", "Engine/Code", "Model data & progres produk (fitur, kualitas, bug, rilis versi)", "Must-Have", "To Do", "src/product.rs (planned)", "Siklus build & release produk software"),
@@ -86,7 +86,7 @@ ASSETS = [
     ("Keyboard & Mouse", "Equipment", "Procedural (scripts/generate_office_assets.py)", "GLB", "Project Original", "Tested", "assets/equipment/equipment_keyboard_mouse.glb", "Set periferal meja"),
     ("Developer Character", "Character", "TBD", "GLB", "TBD", "Needed", "assets/characters/employees/character_developer.glb", "Idle, Walk, Sitting, Typing (M5)"),
     ("Employee Portraits", "UI", "TBD", "PNG", "TBD", "Needed", "assets/characters/employees/portraits/", "Untuk UI kandidat & profil (M5)"),
-    ("UI Icon Set", "UI", "TBD", "PNG", "TBD", "Needed", "assets/ui/icons/", "Money, company, employee, product, time (M3)"),
+    ("UI Icon Set", "UI", "Procedural (scripts/generate_ui_icons.py)", "PNG", "Project Original", "Tested", "assets/ui/icons/", "6 ikon 64x64 RGBA: money, time, company, employee, product, settings"),
     ("UI Font", "UI", "TBD", "TTF/OTF", "TBD", "Needed", "assets/fonts/", "Font UI berlisensi komersial (M3)"),
     ("Furniture Lanjutan", "Furniture", "TBD", "GLB", "TBD", "Needed", "assets/furniture/", "Sofa, meeting table, whiteboard, tanaman (M8)"),
     ("Audio SFX & Ambience", "Audio", "TBD", "OGG", "TBD", "Needed", "assets/audio/", "UI click, footsteps, typing, door, BGM (M10)"),

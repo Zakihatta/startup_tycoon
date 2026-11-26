@@ -1,5 +1,6 @@
 use bevy::{
     input::mouse::AccumulatedMouseMotion,
+    picking::hover::Hovered,
     prelude::*,
     window::{CursorGrabMode, CursorOptions},
 };
@@ -8,7 +9,10 @@ use std::{
     time::Duration,
 };
 
-use crate::{office::OfficeColliders, ui::WorkstationUiState};
+use crate::{
+    office::OfficeColliders,
+    ui::{HudInteractive, WorkstationUiState},
+};
 
 const FOUNDER_ASSET: &str = "characters/player/character_founder.glb";
 
@@ -115,6 +119,7 @@ fn spawn_player(
 
 fn toggle_cursor_grab(
     ui_state: Res<WorkstationUiState>,
+    hud_hover_q: Query<&Hovered, With<HudInteractive>>,
     mut cursor_options: Single<&mut CursorOptions>,
     mouse: Res<ButtonInput<MouseButton>>,
     keys: Res<ButtonInput<KeyCode>>,
@@ -123,8 +128,11 @@ fn toggle_cursor_grab(
         return;
     }
     if mouse.just_pressed(MouseButton::Left) {
-        cursor_options.visible = false;
-        cursor_options.grab_mode = CursorGrabMode::Locked;
+        let hovering_hud = hud_hover_q.iter().any(|h| h.get());
+        if !hovering_hud {
+            cursor_options.visible = false;
+            cursor_options.grab_mode = CursorGrabMode::Locked;
+        }
     }
     if keys.just_pressed(KeyCode::Escape) {
         cursor_options.visible = true;
