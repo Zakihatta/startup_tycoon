@@ -20,6 +20,7 @@ impl Plugin for OfficeAtmospherePlugin {
                     animate_dust_motes,
                     sync_ambient_lighting,
                     sync_stage_2_loft,
+                    sync_stage_3_lobby,
                 ),
             );
     }
@@ -28,7 +29,14 @@ impl Plugin for OfficeAtmospherePlugin {
 #[derive(Resource, Default)]
 pub struct LoftVisualState {
     pub stage_2_spawned: bool,
+    pub stage_3_spawned: bool,
 }
+
+#[derive(Component)]
+pub struct Stage2EastArchwayTile;
+
+#[derive(Component)]
+pub struct Stage3LobbyProp;
 
 #[derive(Component)]
 pub struct DustMote {
@@ -450,11 +458,14 @@ fn sync_stage_2_loft(
         } else {
             wall_plain.clone()
         };
-        commands.spawn((
+        let mut cmd = commands.spawn((
             Stage2LoftProp,
             WorldAssetRoot(east_scene),
             Transform::from_xyz(7.0, 0.0, z).with_rotation(Quat::from_rotation_y(FRAC_PI_2)),
         ));
+        if gz >= 2 {
+            cmd.insert(Stage2EastArchwayTile);
+        }
     }
 
     let oak_mat = materials.add(StandardMaterial {
@@ -617,5 +628,207 @@ fn sync_stage_2_loft(
             ..default()
         },
         Transform::from_xyz(5.2, 2.55, 0.0),
+    ));
+}
+
+#[allow(clippy::too_many_arguments)]
+fn sync_stage_3_lobby(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    stage: Res<CompanyStageState>,
+    mut loft_state: ResMut<LoftVisualState>,
+    mut colliders: ResMut<OfficeColliders>,
+    mut arch2_q: Query<&mut Visibility, With<Stage2EastArchwayTile>>,
+    lobby_prop_q: Query<Entity, With<Stage3LobbyProp>>,
+) {
+    let should_have_lobby = matches!(
+        stage.current,
+        CompanyStage::GrowingCompany | CompanyStage::Corporation
+    );
+
+    if !should_have_lobby && loft_state.stage_3_spawned {
+        loft_state.stage_3_spawned = false;
+        colliders.room_max_x = if loft_state.stage_2_spawned { 6.15 } else { 2.68 };
+        for mut vis in &mut arch2_q {
+            *vis = Visibility::Inherited;
+        }
+        for ent in &lobby_prop_q {
+            commands.entity(ent).despawn();
+        }
+        return;
+    }
+
+    if !should_have_lobby || loft_state.stage_3_spawned {
+        return;
+    }
+    loft_state.stage_3_spawned = true;
+
+    for mut vis in &mut arch2_q {
+        *vis = Visibility::Hidden;
+    }
+
+    colliders.room_max_x = 10.15;
+    colliders.obstacles.push(Aabb2d {
+        min_x: 7.10,
+        max_x: 10.20,
+        min_z: -2.05,
+        max_z: -0.60,
+    });
+    colliders.obstacles.push(Aabb2d {
+        min_x: 8.05,
+        max_x: 9.45,
+        min_z: 0.55,
+        max_z: 1.45,
+    });
+
+    let floor_handle = asset_server.load(
+        GltfAssetLabel::Scene(0).from_asset("environment/floor/environment_floor_tile.glb"),
+    );
+    let wall_plain = asset_server.load(
+        GltfAssetLabel::Scene(0).from_asset("environment/walls/environment_wall_plain.glb"),
+    );
+    let wall_window = asset_server.load(
+        GltfAssetLabel::Scene(0).from_asset("environment/walls/environment_wall_window.glb"),
+    );
+    let wall_door = asset_server.load(
+        GltfAssetLabel::Scene(0).from_asset("environment/walls/environment_wall_door.glb"),
+    );
+    let desk_handle = asset_server.load(
+        GltfAssetLabel::Scene(0).from_asset("furniture/furniture_desk_basic.glb"),
+    );
+    let chair_handle = asset_server.load(
+        GltfAssetLabel::Scene(0).from_asset("furniture/furniture_chair_office.glb"),
+    );
+    let monitor_handle = asset_server.load(
+        GltfAssetLabel::Scene(0).from_asset("equipment/equipment_monitor_basic.glb"),
+    );
+    let plant_handle = asset_server.load(
+        GltfAssetLabel::Scene(0).from_asset("furniture/furniture_plant_pot.glb"),
+    );
+
+    // 4 x 5 oak floor wing (x = 7.5..10.5)
+    for gx in 0..4 {
+        for gz in 0..5 {
+            commands.spawn((
+                Stage3LobbyProp,
+                WorldAssetRoot(floor_handle.clone()),
+                Transform::from_xyz(7.5 + gx as f32, 0.0, -2.0 + gz as f32),
+            ));
+        }
+    }
+
+    // North tall grid windows, South lobby wall with open courier doorway at x = 8.5, and East windows
+    for gx in 0..4 {
+        let x = 7.5 + gx as f32;
+        commands.spawn((
+            Stage3LobbyProp,
+            WorldAssetRoot(wall_window.clone()),
+            Transform::from_xyz(x, 0.0, -2.5),
+        ));
+        let south_scene = if gx == 1 {
+            wall_door.clone()
+        } else {
+            wall_plain.clone()
+        };
+        commands.spawn((
+            Stage3LobbyProp,
+            WorldAssetRoot(south_scene),
+            Transform::from_xyz(x, 0.0, 2.5),
+        ));
+    }
+    for gz in 0..5 {
+        let z = -2.0 + gz as f32;
+        let east_scene = if gz <= 2 {
+            wall_window.clone()
+        } else {
+            wall_plain.clone()
+        };
+        commands.spawn((
+            Stage3LobbyProp,
+            WorldAssetRoot(east_scene),
+            Transform::from_xyz(11.0, 0.0, z).with_rotation(Quat::from_rotation_y(FRAC_PI_2)),
+        ));
+    }
+
+    // Team Workstations #3, #4 (north) and Manager Desk #5 (south-west wing)
+    for (pos, yaw) in [
+        (Vec3::new(7.80, 0.0, -1.55), 0.0),
+        (Vec3::new(9.50, 0.0, -1.55), 0.0),
+        (Vec3::new(7.80, 0.0, 1.55), std::f32::consts::PI),
+    ] {
+        commands
+            .spawn((
+                Stage3LobbyProp,
+                Transform::from_translation(pos).with_rotation(Quat::from_rotation_y(yaw)),
+                Visibility::default(),
+            ))
+            .with_children(|ws| {
+                ws.spawn((WorldAssetRoot(desk_handle.clone()), Transform::IDENTITY));
+                ws.spawn((
+                    WorldAssetRoot(chair_handle.clone()),
+                    Transform::from_xyz(0.0, 0.0, 0.83),
+                ));
+                ws.spawn((
+                    WorldAssetRoot(monitor_handle.clone()),
+                    Transform::from_xyz(0.0, 0.75, -0.17),
+                ));
+            });
+    }
+
+    // Receptionist Lobby Counter facing south entrance (courier arrives at z=1.85)
+    let oak_mat = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.58, 0.42, 0.28),
+        perceptual_roughness: 0.62,
+        ..default()
+    });
+    let top_mat = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.94, 0.91, 0.86),
+        perceptual_roughness: 0.45,
+        ..default()
+    });
+    commands
+        .spawn((
+            Stage3LobbyProp,
+            Transform::from_xyz(8.75, 0.0, 1.00),
+            Visibility::default(),
+        ))
+        .with_children(|rec| {
+            rec.spawn((
+                Mesh3d(meshes.add(Cuboid::new(1.50, 0.96, 0.65))),
+                MeshMaterial3d(oak_mat),
+                Transform::from_xyz(0.0, 0.48, 0.0),
+            ));
+            rec.spawn((
+                Mesh3d(meshes.add(Cuboid::new(1.58, 0.06, 0.72))),
+                MeshMaterial3d(top_mat),
+                Transform::from_xyz(0.0, 0.99, 0.0),
+            ));
+        });
+
+    commands.spawn((
+        Stage3LobbyProp,
+        WorldAssetRoot(plant_handle.clone()),
+        Transform::from_xyz(10.35, 0.0, 1.95),
+    ));
+    commands.spawn((
+        Stage3LobbyProp,
+        WorldAssetRoot(plant_handle),
+        Transform::from_xyz(7.25, 0.0, -2.05),
+    ));
+
+    // Warm Lobby Lighting
+    commands.spawn((
+        Stage3LobbyProp,
+        WarmLampLight,
+        PointLight {
+            color: Color::srgb(1.0, 0.89, 0.72),
+            intensity: 190_000.0,
+            range: 15.0,
+            shadow_maps_enabled: false,
+            ..default()
+        },
+        Transform::from_xyz(8.9, 2.55, 0.1),
     ));
 }

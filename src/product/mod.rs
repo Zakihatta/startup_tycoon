@@ -27,6 +27,11 @@ impl Plugin for ProductPlugin {
 
 pub const PRODUCT_START_COST: i64 = 1_500;
 pub const PRODUCT_DAILY_DEV_COST: i64 = 100;
+pub const PRODUCT_POLISH_COST: i64 = 800;
+
+fn default_version() -> u32 {
+    1
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ProductPhase {
@@ -56,18 +61,24 @@ pub struct SoftwareProduct {
     pub quality: f32,
     pub start_day: u32,
     pub launch_day: Option<u32>,
+    #[serde(default = "default_version")]
+    pub version: u32,
 }
 
 #[derive(Resource, Clone, Default, Debug, Serialize, Deserialize)]
 pub struct ProductState {
     pub active: Option<SoftwareProduct>,
     pub total_productivity_bonus: f32,
+    #[serde(default)]
+    pub launched_portfolio: Vec<SoftwareProduct>,
 }
 
 #[derive(Message, Clone, Debug)]
 pub enum ProductCommand {
     StartProject { name: String, category: String },
     LaunchProduct,
+    PolishActiveProduct,
+    StartNextProject { name: String, category: String },
 }
 
 impl ProductState {
@@ -99,8 +110,78 @@ impl ProductState {
             quality: 20.0,
             start_day: day,
             launch_day: None,
+            version: 1,
         });
         Ok(())
+    }
+
+    pub fn launched_count(&self) -> usize {
+        let active_launched = usize::from(
+            self.active
+                .as_ref()
+                .is_some_and(|p| p.phase == ProductPhase::Launched),
+        );
+        self.launched_portfolio.len() + active_launched
+    }
+
+    pub fn effective_market_quality(&self) -> f32 {
+        let active_q = self
+            .active
+            .as_ref()
+            .filter(|p| p.phase == ProductPhase::Launched)
+            .map_or(0.0, |p| p.quality);
+        let portfolio_q: f32 = self
+            .launched_portfolio
+            .iter()
+            .map(|p| p.quality * 0.45)
+            .sum();
+        active_q + portfolio_q
+    }
+
+    pub fn polish_active(
+        &mut self,
+        day: u32,
+        finance: &mut FinanceState,
+    ) -> Result<u32, &'static str> {
+        let Some(prod) = &mut self.active else {
+            return Err("Belum ada produk aktif.");
+        };
+        if prod.phase != ProductPhase::Launched {
+            return Err("Luncurkan produk dulu sebelum membuat versi pembaruan.");
+        }
+        if finance.cash_balance < PRODUCT_POLISH_COST {
+            return Err("Saldo kas kurang ($800) untuk pembaruan kualitas.");
+        }
+        finance.record_transaction(
+            day,
+            format!("Update {} v{}", prod.name, prod.version + 1),
+            -PRODUCT_POLISH_COST,
+            TransactionKind::ProductCost,
+        );
+        prod.version += 1;
+        prod.quality = (prod.quality + 8.0).min(100.0);
+        Ok(prod.version)
+    }
+
+    pub fn start_next_project(
+        &mut self,
+        name: impl Into<String>,
+        category: impl Into<String>,
+        day: u32,
+        finance: &mut FinanceState,
+    ) -> Result<(), &'static str> {
+        if let Some(cur) = self.active.as_ref() {
+            if cur.phase != ProductPhase::Launched {
+                return Err("Selesaikan & luncurkan produk yang sedang berjalan dulu.");
+            }
+        }
+        if finance.cash_balance < PRODUCT_START_COST {
+            return Err("Saldo kas tidak mencukupi ($1,500) untuk produk baru.");
+        }
+        if let Some(old) = self.active.take() {
+            self.launched_portfolio.push(old);
+        }
+        self.start_project(name, category, day, finance)
     }
 
     #[cfg_attr(not(test), allow(dead_code))]
@@ -181,6 +262,31 @@ fn handle_product_commands(
                             "Produk '{}' resmi dirilis!",
                             p.name
                         )));
+                    }
+                }
+            }
+            ProductCommand::PolishActiveProduct => {
+                match product.polish_active(clock.day, &mut finance) {
+                    Ok(ver) => {
+                        company.reputation = (company.reputation + 2.5).min(100.0);
+                        notify.write(NotifyMessage::info(format!(
+                            "Pembaruan v{ver} selesai! Kualitas & Nama Baik meningkat."
+                        )));
+                    }
+                    Err(err) => {
+                        notify.write(NotifyMessage::warn(err));
+                    }
+                }
+            }
+            ProductCommand::StartNextProject { name, category } => {
+                match product.start_next_project(name.clone(), category.clone(), clock.day, &mut finance) {
+                    Ok(()) => {
+                        notify.write(NotifyMessage::info(format!(
+                            "Produk baru '{name}' dimulai! Produk sebelumnya tetap menghasilkan pendapatan."
+                        )));
+                    }
+                    Err(err) => {
+                        notify.write(NotifyMessage::warn(err));
                     }
                 }
             }

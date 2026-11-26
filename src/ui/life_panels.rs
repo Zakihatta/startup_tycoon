@@ -11,10 +11,11 @@ use crate::{
     core::GameClock,
     economy::FinanceState,
     employee::{EmployeeCommand, EmployeeState},
+    events::{EventDecisionCommand, EventDirectorState},
     interaction::{InteractTriggered, InteractableKind},
     life::{
-        CompanyStageState, DeliveryState, FoodItemKind, LifeCommand, PlayerStatus, QuestState,
-        STAGE_2_UPGRADE_COST,
+        CompanyStage, CompanyStageState, DeliveryState, FoodItemKind, LifeCommand, PlayerStatus,
+        QuestState, STAGE_2_UPGRADE_COST, STAGE_3_UPGRADE_COST, STAGE_4_UPGRADE_COST,
     },
     market::MarketState,
     office::OfficeExpansionState,
@@ -53,6 +54,24 @@ pub struct FounderTabBodyText;
 
 #[derive(Component)]
 pub struct Stage2UpgradeButton;
+
+#[derive(Component)]
+pub struct StageUpgradeButtonText;
+
+#[derive(Component)]
+pub struct EventChoiceModal;
+
+#[derive(Component)]
+pub struct EventTitleText;
+
+#[derive(Component)]
+pub struct EventBodyText;
+
+#[derive(Component)]
+pub struct EventOptionAText;
+
+#[derive(Component)]
+pub struct EventOptionBText;
 
 #[derive(Component)]
 pub struct OrderTabBodyText;
@@ -432,11 +451,25 @@ pub fn spawn_founder_and_order_tabs(panel: &mut ChildSpawnerCommands) {
                         },
                         BackgroundColor(Color::srgb(0.22, 0.48, 0.72)),
                     ))
-                    .observe(|_: On<Activate>, mut writer: MessageWriter<LifeCommand>| {
-                        writer.write(LifeCommand::UpgradeToStage2);
-                    })
+                    .observe(
+                        |_: On<Activate>,
+                         stage: Res<CompanyStageState>,
+                         mut writer: MessageWriter<LifeCommand>| match stage.current {
+                            CompanyStage::Founder => {
+                                writer.write(LifeCommand::UpgradeToStage2);
+                            }
+                            CompanyStage::SmallStartup => {
+                                writer.write(LifeCommand::UpgradeToStage3);
+                            }
+                            CompanyStage::GrowingCompany => {
+                                writer.write(LifeCommand::UpgradeToStage4);
+                            }
+                            CompanyStage::Corporation => {}
+                        },
+                    )
                     .with_children(|b| {
                         b.spawn((
+                            StageUpgradeButtonText,
                             Text::new(format!(
                                 "Naik ke Stage 2: Small Startup ({})",
                                 format_money(STAGE_2_UPGRADE_COST)
@@ -712,6 +745,117 @@ pub fn spawn_main_menu_and_npc_modals(commands: &mut Commands) {
                     });
                 });
         });
+
+    // Everyday Choice Event Pop-up Modal
+    commands
+        .spawn((
+            EventChoiceModal,
+            Visibility::Hidden,
+            Node {
+                position_type: PositionType::Absolute,
+                width: percent(100.0),
+                height: percent(100.0),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                ..default()
+            },
+            BackgroundColor(Color::srgba(0.03, 0.05, 0.09, 0.72)),
+        ))
+        .with_children(|backdrop| {
+            backdrop
+                .spawn((
+                    Node {
+                        width: px(500.0),
+                        flex_direction: FlexDirection::Column,
+                        row_gap: px(12.0),
+                        padding: UiRect::all(px(22.0)),
+                        border: UiRect::all(px(2.0)),
+                        ..default()
+                    },
+                    BackgroundColor(Color::srgb(0.10, 0.13, 0.19)),
+                    BorderColor::all(Color::srgb(0.92, 0.72, 0.28)),
+                ))
+                .with_children(|card| {
+                    card.spawn((
+                        EventTitleText,
+                        Text::new("Kejadian Usaha"),
+                        TextFont {
+                            font_size: FontSize::Px(19.0),
+                            ..default()
+                        },
+                        TextColor(Color::srgb(0.96, 0.78, 0.32)),
+                    ));
+                    card.spawn((
+                        EventBodyText,
+                        Text::new(""),
+                        TextFont {
+                            font_size: FontSize::Px(14.5),
+                            ..default()
+                        },
+                        TextColor(Color::srgb(0.92, 0.95, 0.98)),
+                    ));
+
+                    card.spawn((
+                        ActionButton,
+                        Button,
+                        Hovered::default(),
+                        Node {
+                            padding: UiRect::axes(px(14.0), px(10.0)),
+                            ..default()
+                        },
+                        BackgroundColor(Color::srgb(0.16, 0.52, 0.40)),
+                    ))
+                    .observe(
+                        |_: On<Activate>,
+                         mut writer: MessageWriter<EventDecisionCommand>,
+                         mut ui: ResMut<WorkstationUiState>| {
+                            writer.write(EventDecisionCommand::ChooseOptionA);
+                            ui.close_all();
+                        },
+                    )
+                    .with_children(|b| {
+                        b.spawn((
+                            EventOptionAText,
+                            Text::new("Pilihan A"),
+                            TextFont {
+                                font_size: FontSize::Px(13.5),
+                                ..default()
+                            },
+                            TextColor(Color::WHITE),
+                        ));
+                    });
+
+                    card.spawn((
+                        ActionButton,
+                        Button,
+                        Hovered::default(),
+                        Node {
+                            padding: UiRect::axes(px(14.0), px(10.0)),
+                            ..default()
+                        },
+                        BackgroundColor(Color::srgb(0.22, 0.34, 0.48)),
+                    ))
+                    .observe(
+                        |_: On<Activate>,
+                         mut writer: MessageWriter<EventDecisionCommand>,
+                         mut ui: ResMut<WorkstationUiState>| {
+                            writer.write(EventDecisionCommand::ChooseOptionB);
+                            ui.close_all();
+                        },
+                    )
+                    .with_children(|b| {
+                        b.spawn((
+                            EventOptionBText,
+                            Text::new("Pilihan B"),
+                            TextFont {
+                                font_size: FontSize::Px(13.5),
+                                ..default()
+                            },
+                            TextColor(Color::WHITE),
+                        ));
+                    });
+                });
+        });
 }
 
 fn spawn_menu_button<'a>(
@@ -873,7 +1017,8 @@ pub fn update_founder_tab(
     finance: Res<FinanceState>,
     expansion: Res<OfficeExpansionState>,
     quests: Res<QuestState>,
-    mut body_q: Query<&mut Text, With<FounderTabBodyText>>,
+    mut body_q: Query<&mut Text, (With<FounderTabBodyText>, Without<StageUpgradeButtonText>)>,
+    mut btn_txt_q: Query<&mut Text, (With<StageUpgradeButtonText>, Without<FounderTabBodyText>)>,
     mut upgrade_q: Query<(&mut Visibility, &mut Node), With<Stage2UpgradeButton>>,
 ) {
     if !ui_state.is_open || ui_state.active_tab != WorkstationTab::Founder {
@@ -895,9 +1040,29 @@ pub fn update_founder_tab(
             quest_str.push_str(&format!("\n  {mark} {} (+{} XP) — {}", q.title, q.xp_reward, q.detail));
         }
 
-        let stage_status = match stage.can_upgrade_to_stage_2(&status, &product, &market, &finance) {
-            Ok(()) => "SIAP NAIK KE STAGE 2: SMALL STARTUP!".to_string(),
-            Err(msg) => format!("Syarat Stage 2: {msg}"),
+        let stage_status = match stage.current {
+            CompanyStage::Founder => {
+                match stage.can_upgrade_to_stage_2(&status, &product, &market, &finance) {
+                    Ok(()) => "SIAP NAIK KE STAGE 2: SMALL STARTUP!".to_string(),
+                    Err(msg) => format!("Syarat Stage 2: {msg}"),
+                }
+            }
+            CompanyStage::SmallStartup => {
+                match stage.can_upgrade_to_stage_3(&status, &employees, &market, &finance) {
+                    Ok(()) => "SIAP NAIK KE STAGE 3: GROWING COMPANY!".to_string(),
+                    Err(msg) => format!("Syarat Stage 3: {msg}"),
+                }
+            }
+            CompanyStage::GrowingCompany => {
+                match stage.can_upgrade_to_stage_4(&status, &employees, &product, &market, &finance)
+                {
+                    Ok(()) => "SIAP NAIK KE STAGE 4: CORPORATION!".to_string(),
+                    Err(msg) => format!("Syarat Stage 4: {msg}"),
+                }
+            }
+            CompanyStage::Corporation => {
+                "Kamu sudah mencapai puncak Stage 4: Corporation!".to_string()
+            }
         };
 
         txt.0 = format!(
@@ -908,7 +1073,7 @@ pub fn update_founder_tab(
              • Kecepatan Kerja: {:.0}% efisiensi\n\
              • Tas Bekal      : {} item siap dimakan\n\
              • Status Stage   : {stage_status}\n\n\
-             Roadmap Hidup: [1] Founder -> [2] Small Startup -> [3] Growing Company -> [4] Corporation\n\n\
+             Roadmap: [1] Founder -> [2] Small Startup -> [3] Growing Company -> [4] Corporation\n\n\
              Daftar Misi:{quest_str}",
             stage.current.title(),
             stage.current.place_label(),
@@ -925,7 +1090,7 @@ pub fn update_founder_tab(
     }
 
     if let Ok((mut vis, mut node)) = upgrade_q.single_mut() {
-        let show = stage.current == crate::life::CompanyStage::Founder;
+        let show = stage.current != CompanyStage::Corporation;
         *vis = if show {
             Visibility::Inherited
         } else {
@@ -933,10 +1098,29 @@ pub fn update_founder_tab(
         };
         node.display = if show { Display::Flex } else { Display::None };
     }
+
+    if let Ok(mut btxt) = btn_txt_q.single_mut() {
+        btxt.0 = match stage.current {
+            CompanyStage::Founder => format!(
+                "Naik ke Stage 2: Small Startup ({})",
+                format_money(STAGE_2_UPGRADE_COST)
+            ),
+            CompanyStage::SmallStartup => format!(
+                "Ekspansi Stage 3: Growing Company ({})",
+                format_money(STAGE_3_UPGRADE_COST)
+            ),
+            CompanyStage::GrowingCompany => format!(
+                "Ekspansi Stage 4: Corporation ({})",
+                format_money(STAGE_4_UPGRADE_COST)
+            ),
+            CompanyStage::Corporation => "Stage Maksimal Tercapai".to_string(),
+        };
+    }
 }
 
 pub fn update_order_tab(
     ui_state: Res<WorkstationUiState>,
+    stage: Res<CompanyStageState>,
     status: Res<PlayerStatus>,
     delivery: Res<DeliveryState>,
     mut bag_q: Query<&mut Text, With<OrderBagSummaryText>>,
@@ -944,6 +1128,11 @@ pub fn update_order_tab(
     if !ui_state.is_open || ui_state.active_tab != WorkstationTab::Order {
         return;
     }
+
+    let uses_lobby = matches!(
+        stage.current,
+        CompanyStage::GrowingCompany | CompanyStage::Corporation
+    );
 
     if let Ok(mut txt) = bag_q.single_mut() {
         let bag_list = if status.snack_bag.is_empty() {
@@ -960,7 +1149,11 @@ pub fn update_order_tab(
         let mut order_lines = String::new();
         for o in &delivery.orders {
             let st = if o.arrived {
-                "TIBA DI DEPAN PINTU — Dekati pintu & tekan [E]!"
+                if uses_lobby {
+                    "TIBA DI LOBBY RESEPSIONIS — Dekati kurir & tekan [E]!"
+                } else {
+                    "TIBA DI DEPAN PINTU — Dekati pintu & tekan [E]!"
+                }
             } else {
                 "Sedang diantar kurir..."
             };
@@ -973,22 +1166,122 @@ pub fn update_order_tab(
         txt.0 = format!(
             "Tas Bekal Founder ({} item): {bag_list}\n\
              Status Pengiriman Kurir:{order_lines}\n\
-             Tip: Perlengkapan kantor di tab 'Kantor' juga diantar kurir ke depan pintu!",
-            status.snack_bag.len()
+             Tip: Perlengkapan kantor di tab 'Kantor' juga diantar kurir ke {}!",
+            status.snack_bag.len(),
+            if uses_lobby {
+                "Lobby Resepsionis"
+            } else {
+                "depan pintu"
+            }
         );
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn sync_extra_modals_and_content(
-    ui_state: Res<WorkstationUiState>,
+    mut ui_state: ResMut<WorkstationUiState>,
     stage: Res<CompanyStageState>,
     clock: Res<GameClock>,
     employees: Res<EmployeeState>,
-    mut menu_q: Query<&mut Visibility, (With<MainMenuModal>, Without<NpcInteractModal>)>,
-    mut npc_q: Query<&mut Visibility, (With<NpcInteractModal>, Without<MainMenuModal>)>,
-    mut menu_txt_q: Query<&mut Text, (With<MainMenuSummaryText>, Without<NpcInteractBodyText>)>,
-    mut npc_txt_q: Query<&mut Text, (With<NpcInteractBodyText>, Without<MainMenuSummaryText>)>,
+    director: Res<EventDirectorState>,
+    mut cursor_options: Single<&mut CursorOptions>,
+    mut menu_q: Query<
+        &mut Visibility,
+        (
+            With<MainMenuModal>,
+            Without<NpcInteractModal>,
+            Without<EventChoiceModal>,
+        ),
+    >,
+    mut npc_q: Query<
+        &mut Visibility,
+        (
+            With<NpcInteractModal>,
+            Without<MainMenuModal>,
+            Without<EventChoiceModal>,
+        ),
+    >,
+    mut event_q: Query<
+        &mut Visibility,
+        (
+            With<EventChoiceModal>,
+            Without<MainMenuModal>,
+            Without<NpcInteractModal>,
+        ),
+    >,
+    mut menu_txt_q: Query<
+        &mut Text,
+        (
+            With<MainMenuSummaryText>,
+            Without<NpcInteractBodyText>,
+            Without<EventTitleText>,
+            Without<EventBodyText>,
+            Without<EventOptionAText>,
+            Without<EventOptionBText>,
+        ),
+    >,
+    mut npc_txt_q: Query<
+        &mut Text,
+        (
+            With<NpcInteractBodyText>,
+            Without<MainMenuSummaryText>,
+            Without<EventTitleText>,
+            Without<EventBodyText>,
+            Without<EventOptionAText>,
+            Without<EventOptionBText>,
+        ),
+    >,
+    mut ev_title_q: Query<
+        &mut Text,
+        (
+            With<EventTitleText>,
+            Without<MainMenuSummaryText>,
+            Without<NpcInteractBodyText>,
+            Without<EventBodyText>,
+            Without<EventOptionAText>,
+            Without<EventOptionBText>,
+        ),
+    >,
+    mut ev_body_q: Query<
+        &mut Text,
+        (
+            With<EventBodyText>,
+            Without<MainMenuSummaryText>,
+            Without<NpcInteractBodyText>,
+            Without<EventTitleText>,
+            Without<EventOptionAText>,
+            Without<EventOptionBText>,
+        ),
+    >,
+    mut ev_a_q: Query<
+        &mut Text,
+        (
+            With<EventOptionAText>,
+            Without<MainMenuSummaryText>,
+            Without<NpcInteractBodyText>,
+            Without<EventTitleText>,
+            Without<EventBodyText>,
+            Without<EventOptionBText>,
+        ),
+    >,
+    mut ev_b_q: Query<
+        &mut Text,
+        (
+            With<EventOptionBText>,
+            Without<MainMenuSummaryText>,
+            Without<NpcInteractBodyText>,
+            Without<EventTitleText>,
+            Without<EventBodyText>,
+            Without<EventOptionAText>,
+        ),
+    >,
 ) {
+    if director.active_event.is_some() && ui_state.modal == ActiveModal::None {
+        ui_state.open_event_choice();
+        cursor_options.visible = true;
+        cursor_options.grab_mode = CursorGrabMode::None;
+    }
+
     if let Ok(mut vis) = menu_q.single_mut() {
         *vis = if ui_state.modal == ActiveModal::MainMenu {
             Visibility::Visible
@@ -1008,6 +1301,31 @@ pub fn sync_extra_modals_and_content(
         } else {
             Visibility::Hidden
         };
+    }
+
+    if let Ok(mut vis) = event_q.single_mut() {
+        *vis = if ui_state.modal == ActiveModal::EventChoice && director.active_event.is_some() {
+            Visibility::Visible
+        } else {
+            Visibility::Hidden
+        };
+    }
+
+    if ui_state.modal == ActiveModal::EventChoice
+        && let Some(ev) = &director.active_event
+    {
+        if let Ok(mut t) = ev_title_q.single_mut() {
+            t.0 = ev.title.to_string();
+        }
+        if let Ok(mut t) = ev_body_q.single_mut() {
+            t.0 = ev.description.to_string();
+        }
+        if let Ok(mut t) = ev_a_q.single_mut() {
+            t.0 = ev.option_a_label.to_string();
+        }
+        if let Ok(mut t) = ev_b_q.single_mut() {
+            t.0 = ev.option_b_label.to_string();
+        }
     }
 
     if ui_state.modal == ActiveModal::MainMenu

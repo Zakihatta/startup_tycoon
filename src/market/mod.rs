@@ -5,6 +5,7 @@ use crate::{
     company::CompanyState,
     core::{DayPassedMessage, NotifyMessage},
     economy::{FinanceState, TransactionKind},
+    employee::EmployeeState,
     office::OfficeExpansionState,
     product::{ProductPhase, ProductState},
 };
@@ -135,30 +136,41 @@ fn process_daily_market(
     mut day_reader: MessageReader<DayPassedMessage>,
     product: Res<ProductState>,
     expansion: Res<OfficeExpansionState>,
+    employees: Res<EmployeeState>,
     mut company: ResMut<CompanyState>,
     mut market: ResMut<MarketState>,
     mut finance: ResMut<FinanceState>,
     mut notify: MessageWriter<NotifyMessage>,
 ) {
-    let Some(prod) = &product.active else {
-        return;
-    };
-    if prod.phase != ProductPhase::Launched {
+    let any_launched = product
+        .active
+        .as_ref()
+        .is_some_and(|p| p.phase == ProductPhase::Launched)
+        || !product.launched_portfolio.is_empty();
+    if !any_launched {
         return;
     }
 
+    let prod_name = product
+        .active
+        .as_ref()
+        .map_or("Portofolio Usaha", |p| p.name.as_str());
+    let eff_quality = product.effective_market_quality();
+
     for ev in day_reader.read() {
-        let rep_eff = company.reputation + if expansion.has_server_rack() { 6.0 } else { 0.0 };
-        let snap = market.simulate_day(ev.new_day, prod.quality, rep_eff);
+        let rep_eff = company.reputation
+            + if expansion.has_server_rack() { 6.0 } else { 0.0 }
+            + employees.marketing_demand_bonus() * 14.0;
+        let snap = market.simulate_day(ev.new_day, eff_quality, rep_eff);
         if snap.revenue > 0 {
             finance.record_transaction(
                 ev.new_day,
-                format!("Omzet {} ({} usr)", prod.name, snap.active_users),
+                format!("Pemasukan {prod_name} ({} pel.)", snap.active_users),
                 snap.revenue,
                 TransactionKind::Revenue,
             );
             notify.write(NotifyMessage::info(format!(
-                "Hari {}: {} user aktif (+${})",
+                "Hari {}: {} pelanggan aktif (+${})",
                 ev.new_day, snap.active_users, snap.revenue
             )));
         }

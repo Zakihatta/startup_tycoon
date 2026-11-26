@@ -82,6 +82,28 @@ impl EmployeeFocus {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum EmployeeRoleKind {
+    #[default]
+    Maker,
+    Designer,
+    QualityChecker,
+    Promoter,
+    Manager,
+}
+
+impl EmployeeRoleKind {
+    pub fn label(self) -> &'static str {
+        match self {
+            EmployeeRoleKind::Maker => "Pembuat Produk",
+            EmployeeRoleKind::Designer => "Perancang Tampilan",
+            EmployeeRoleKind::QualityChecker => "Pemeriksa Kualitas",
+            EmployeeRoleKind::Promoter => "Tim Promosi",
+            EmployeeRoleKind::Manager => "Manajer Kantor",
+        }
+    }
+}
+
 fn default_employee_stat() -> f32 {
     90.0
 }
@@ -90,7 +112,7 @@ fn default_employee_stat() -> f32 {
 pub struct HireCandidate {
     pub id: u32,
     pub name: String,
-    pub role_label: &'static str,
+    pub role_kind: EmployeeRoleKind,
     pub skill: f32,
     pub daily_salary: i64,
     pub hiring_fee: i64,
@@ -102,6 +124,8 @@ pub struct EmployeeProfile {
     pub id: u32,
     pub name: String,
     pub role: String,
+    #[serde(default)]
+    pub role_kind: EmployeeRoleKind,
     pub skill: f32,
     pub daily_salary: i64,
     pub portrait_path: String,
@@ -130,7 +154,7 @@ impl Default for EmployeeState {
                 HireCandidate {
                     id: 1,
                     name: "Raka Pratama".to_string(),
-                    role_label: "Pembuat Produk",
+                    role_kind: EmployeeRoleKind::Maker,
                     skill: 1.2,
                     daily_salary: 160,
                     hiring_fee: 600,
@@ -139,11 +163,38 @@ impl Default for EmployeeState {
                 HireCandidate {
                     id: 2,
                     name: "Sinta Wijaya".to_string(),
-                    role_label: "Perancang & Pembuat",
+                    role_kind: EmployeeRoleKind::Designer,
                     skill: 1.8,
                     daily_salary: 240,
                     hiring_fee: 1_000,
                     portrait_path: "characters/employees/portraits/developer_02.png",
+                },
+                HireCandidate {
+                    id: 3,
+                    name: "Bima Kusuma".to_string(),
+                    role_kind: EmployeeRoleKind::QualityChecker,
+                    skill: 1.5,
+                    daily_salary: 190,
+                    hiring_fee: 850,
+                    portrait_path: "characters/employees/portraits/developer_01.png",
+                },
+                HireCandidate {
+                    id: 4,
+                    name: "Nadia Putri".to_string(),
+                    role_kind: EmployeeRoleKind::Promoter,
+                    skill: 1.6,
+                    daily_salary: 210,
+                    hiring_fee: 950,
+                    portrait_path: "characters/employees/portraits/developer_02.png",
+                },
+                HireCandidate {
+                    id: 5,
+                    name: "Hendra Santoso".to_string(),
+                    role_kind: EmployeeRoleKind::Manager,
+                    skill: 2.0,
+                    daily_salary: 320,
+                    hiring_fee: 1_600,
+                    portrait_path: "characters/employees/portraits/developer_01.png",
                 },
             ],
             roster: Vec::new(),
@@ -186,7 +237,8 @@ impl EmployeeState {
         let profile = EmployeeProfile {
             id: cand.id,
             name: cand.name,
-            role: cand.role_label.to_string(),
+            role: cand.role_kind.label().to_string(),
+            role_kind: cand.role_kind,
             skill: cand.skill,
             daily_salary: cand.daily_salary,
             portrait_path: cand.portrait_path.to_string(),
@@ -199,6 +251,33 @@ impl EmployeeState {
         self.roster.push(profile.clone());
         company.team_size = 1 + self.roster.len() as u32;
         Ok(profile)
+    }
+
+    pub fn has_manager(&self) -> bool {
+        self.roster
+            .iter()
+            .any(|e| e.role_kind == EmployeeRoleKind::Manager)
+    }
+
+    pub fn marketing_demand_bonus(&self) -> f32 {
+        self.roster
+            .iter()
+            .filter(|e| e.role_kind == EmployeeRoleKind::Promoter)
+            .map(|e| e.skill * 0.14)
+            .sum()
+    }
+
+    pub fn quality_bonus(&self) -> f32 {
+        self.roster
+            .iter()
+            .filter(|e| {
+                matches!(
+                    e.role_kind,
+                    EmployeeRoleKind::Designer | EmployeeRoleKind::QualityChecker
+                )
+            })
+            .map(|e| e.skill * 0.35)
+            .sum()
     }
 
     pub fn productivity_bonus(&self) -> f32 {
@@ -278,20 +357,47 @@ pub fn spawn_developer_npc(
     desk_index: usize,
     already_seated: bool,
 ) {
-    let (desk_chair_pos, seat_yaw, approach_wps) = if desk_index == 1 {
-        let chair = Vec3::new(-1.37, 0.0, 0.60);
-        (
-            chair,
-            FRAC_PI_2,
-            vec![Vec3::new(0.2, 0.0, 0.9), Vec3::new(-0.7, 0.0, 0.60), chair],
-        )
-    } else {
-        let chair = Vec3::new(1.3, 0.0, -0.82);
-        (
-            chair,
-            0.0,
-            vec![Vec3::new(0.5, 0.0, 0.3), Vec3::new(1.3, 0.0, -0.35), chair],
-        )
+    let (desk_chair_pos, seat_yaw, approach_wps) = match desk_index {
+        1 => {
+            let chair = Vec3::new(-1.37, 0.0, 0.60);
+            (
+                chair,
+                FRAC_PI_2,
+                vec![Vec3::new(0.2, 0.0, 0.9), Vec3::new(-0.7, 0.0, 0.60), chair],
+            )
+        }
+        2 => {
+            let chair = Vec3::new(7.80, 0.0, -0.72);
+            (
+                chair,
+                0.0,
+                vec![Vec3::new(3.2, 0.0, 0.2), Vec3::new(6.8, 0.0, 0.2), chair],
+            )
+        }
+        3 => {
+            let chair = Vec3::new(9.50, 0.0, -0.72);
+            (
+                chair,
+                0.0,
+                vec![Vec3::new(3.2, 0.0, 0.2), Vec3::new(7.8, 0.0, 0.2), chair],
+            )
+        }
+        4 => {
+            let chair = Vec3::new(7.80, 0.0, 0.72);
+            (
+                chair,
+                PI,
+                vec![Vec3::new(3.2, 0.0, 0.2), Vec3::new(7.2, 0.0, 0.4), chair],
+            )
+        }
+        _ => {
+            let chair = Vec3::new(1.3, 0.0, -0.82);
+            (
+                chair,
+                0.0,
+                vec![Vec3::new(0.5, 0.0, 0.3), Vec3::new(1.3, 0.0, -0.35), chair],
+            )
+        }
     };
 
     let spawn_pos = if already_seated {
@@ -387,6 +493,7 @@ fn tick_employee_needs_hourly(
     mut hour_reader: MessageReader<HourPassedMessage>,
     mut employees: ResMut<EmployeeState>,
 ) {
+    let has_mgr = employees.has_manager();
     for ev in hour_reader.read() {
         let is_night = ev.hour < 8 || ev.hour > 21;
         for emp in &mut employees.roster {
@@ -394,8 +501,10 @@ fn tick_employee_needs_hourly(
                 emp.energy = (emp.energy + 12.0).clamp(0.0, 100.0);
                 emp.mood = (emp.mood + 4.0).clamp(0.0, 100.0);
             } else if emp.state == EmployeeWorkState::Working {
-                emp.energy = (emp.energy - 3.2).max(10.0);
-                emp.mood = (emp.mood - 1.2).max(20.0);
+                let drain_e = if has_mgr { 1.4 } else { 3.2 };
+                let drain_m = if has_mgr { 0.3 } else { 1.2 };
+                emp.energy = (emp.energy - drain_e).max(15.0);
+                emp.mood = (emp.mood - drain_m).max(25.0);
             } else {
                 emp.energy = (emp.energy + 6.5).clamp(0.0, 100.0);
                 emp.mood = (emp.mood + 3.0).clamp(0.0, 100.0);
@@ -589,7 +698,7 @@ fn sync_employee_productivity(
     mut product: ResMut<ProductState>,
 ) {
     let whiteboard_bonus = if expansion.has_whiteboard() { 0.4 } else { 0.0 };
-    let bonus = employees.productivity_bonus() + whiteboard_bonus;
+    let bonus = employees.productivity_bonus() + employees.quality_bonus() + whiteboard_bonus;
     if (product.total_productivity_bonus - bonus).abs() > 1e-4 {
         product.total_productivity_bonus = bonus;
     }

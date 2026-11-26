@@ -6,6 +6,7 @@ mod company;
 mod core;
 mod economy;
 mod employee;
+mod events;
 mod interaction;
 mod life;
 mod market;
@@ -21,6 +22,7 @@ use company::CompanyPlugin;
 use core::{NotificationPlugin, TimePlugin};
 use economy::EconomyPlugin;
 use employee::EmployeePlugin;
+use events::EventsPlugin;
 use interaction::InteractionPlugin;
 use life::LifePlugin;
 use market::MarketPlugin;
@@ -88,11 +90,14 @@ fn main() {
             ProductPlugin,
             EmployeePlugin,
             MarketPlugin,
+        ))
+        .add_plugins((
             OfficePlugin,
             OfficeAtmospherePlugin,
             PlayerPlugin,
             InteractionPlugin,
             LifePlugin,
+            EventsPlugin,
             SaveSystemPlugin,
             GameUiPlugin,
         ))

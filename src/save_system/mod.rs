@@ -12,9 +12,11 @@ use crate::{
     employee::{
         spawn_developer_npc, DeveloperNpc, EmployeeProfile, EmployeeState, EmployeeWorkState,
     },
+    events::{CompetitorState, EventDirectorState},
     interaction::Interactable,
     life::{
-        ensure_employee_stats_sane, CompanyStageState, DeliveryState, PlayerStatus, QuestState,
+        ensure_employee_stats_sane, CompanyStage, CompanyStageState, DeliveryState, PlayerStatus,
+        QuestState,
     },
     market::MarketState,
     office::{
@@ -68,6 +70,10 @@ pub struct SaveGameData {
     pub deliveries: DeliveryState,
     #[serde(default)]
     pub quests: QuestState,
+    #[serde(default)]
+    pub competitors: CompetitorState,
+    #[serde(default)]
+    pub event_director: EventDirectorState,
     pub player_pos: [f32; 3],
     pub player_yaw: f32,
     pub door_open: bool,
@@ -149,6 +155,8 @@ struct SaveLifeParams<'w> {
     status: ResMut<'w, PlayerStatus>,
     delivery: ResMut<'w, DeliveryState>,
     quests: ResMut<'w, QuestState>,
+    competitors: ResMut<'w, CompetitorState>,
+    director: ResMut<'w, EventDirectorState>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -192,6 +200,8 @@ fn process_save_commands(
                     stage: life.stage.clone(),
                     deliveries: life.delivery.clone(),
                     quests: life.quests.clone(),
+                    competitors: life.competitors.clone(),
+                    event_director: life.director.clone(),
                     player_pos,
                     player_yaw,
                     door_open,
@@ -222,15 +232,23 @@ fn process_save_commands(
                     *life.stage = data.stage;
                     *life.delivery = data.deliveries;
                     *life.quests = data.quests;
+                    *life.competitors = data.competitors;
+                    *life.director = data.event_director;
 
-                    core.employees.max_employees =
-                        if core.expansion.is_purchased(OfficeUpgradeKind::ExtraWorkstation)
-                            || life.stage.current != crate::life::CompanyStage::Founder
-                        {
-                            2
-                        } else {
-                            1
-                        };
+                    let stage_slots = match life.stage.current {
+                        CompanyStage::Founder => 1,
+                        CompanyStage::SmallStartup => 2,
+                        CompanyStage::GrowingCompany => 4,
+                        CompanyStage::Corporation => 5,
+                    };
+                    core.employees.max_employees = if core
+                        .expansion
+                        .is_purchased(OfficeUpgradeKind::ExtraWorkstation)
+                    {
+                        stage_slots.max(2)
+                    } else {
+                        stage_slots
+                    };
 
                     if data.employees.len() <= core.employees.max_employees {
                         core.employees.roster = data.employees;
@@ -321,6 +339,7 @@ mod tests {
                 id: 1,
                 name: "Raka Pratama".to_string(),
                 role: "Pembuat Produk".to_string(),
+                role_kind: crate::employee::EmployeeRoleKind::Maker,
                 skill: 1.2,
                 daily_salary: 160,
                 portrait_path: "characters/employees/portraits/developer_01.png".to_string(),
@@ -336,6 +355,8 @@ mod tests {
             stage: CompanyStageState::default(),
             deliveries: DeliveryState::default(),
             quests: QuestState::default(),
+            competitors: CompetitorState::default(),
+            event_director: EventDirectorState::default(),
             player_pos: [0.5, 0.0, 1.0],
             player_yaw: 0.4,
             door_open: true,

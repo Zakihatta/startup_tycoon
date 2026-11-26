@@ -87,6 +87,8 @@ pub struct CompanyStageState {
 }
 
 pub const STAGE_2_UPGRADE_COST: i64 = 3_500;
+pub const STAGE_3_UPGRADE_COST: i64 = 8_000;
+pub const STAGE_4_UPGRADE_COST: i64 = 18_000;
 
 impl CompanyStageState {
     pub fn can_upgrade_to_stage_2(
@@ -100,10 +102,7 @@ impl CompanyStageState {
             return Err("Usaha sudah berada di Stage 2 atau lebih tinggi.");
         }
         let has_launched = status.products_launched >= 1
-            || product
-                .active
-                .as_ref()
-                .is_some_and(|p| p.phase == ProductPhase::Launched);
+            || product.launched_count() >= 1;
         if !has_launched {
             return Err("Luncurkan minimal 1 produk pertama dulu.");
         }
@@ -115,6 +114,60 @@ impl CompanyStageState {
         }
         if finance.cash_balance < STAGE_2_UPGRADE_COST {
             return Err("Kas butuh minimal $3,500 untuk pindah ke Small Startup.");
+        }
+        Ok(())
+    }
+
+    pub fn can_upgrade_to_stage_3(
+        &self,
+        status: &PlayerStatus,
+        employees: &EmployeeState,
+        market: &MarketState,
+        finance: &FinanceState,
+    ) -> Result<(), &'static str> {
+        if self.current != CompanyStage::SmallStartup {
+            return Err("Harus berada di Stage 2 terlebih dahulu.");
+        }
+        if status.level < 3 {
+            return Err("Capai Level Founder 3 terlebih dahulu.");
+        }
+        if employees.roster.len() < 2 {
+            return Err("Rekrut minimal 2 anggota tim terlebih dahulu.");
+        }
+        if market.active_users < 60 {
+            return Err("Capai minimal 60 pelanggan aktif terlebih dahulu.");
+        }
+        if finance.cash_balance < STAGE_3_UPGRADE_COST {
+            return Err("Kas butuh minimal $8,000 untuk membuka Kantor & Lobby Stage 3.");
+        }
+        Ok(())
+    }
+
+    pub fn can_upgrade_to_stage_4(
+        &self,
+        status: &PlayerStatus,
+        employees: &EmployeeState,
+        product: &ProductState,
+        market: &MarketState,
+        finance: &FinanceState,
+    ) -> Result<(), &'static str> {
+        if self.current != CompanyStage::GrowingCompany {
+            return Err("Harus berada di Stage 3 terlebih dahulu.");
+        }
+        if status.level < 4 {
+            return Err("Capai Level Founder 4 terlebih dahulu.");
+        }
+        if !employees.has_manager() {
+            return Err("Rekrut 1 Manajer Kantor di tab Tim terlebih dahulu.");
+        }
+        if product.launched_count() < 2 {
+            return Err("Miliki minimal 2 produk yang sudah dipasarkan.");
+        }
+        if market.active_users < 140 {
+            return Err("Capai minimal 140 pelanggan aktif terlebih dahulu.");
+        }
+        if finance.cash_balance < STAGE_4_UPGRADE_COST {
+            return Err("Kas butuh minimal $18,000 untuk ekspansi ke Stage 4: Corporation.");
         }
         Ok(())
     }
@@ -475,6 +528,8 @@ pub enum LifeCommand {
     EatFromBag(usize),
     RestFounder,
     UpgradeToStage2,
+    UpgradeToStage3,
+    UpgradeToStage4,
 }
 
 #[derive(Clone, Debug)]
@@ -546,7 +601,7 @@ impl QuestState {
             },
         ];
 
-        if stage != CompanyStage::Founder {
+        if stage == CompanyStage::SmallStartup {
             list.push(QuestItemView {
                 id: "q6_office_props",
                 title: "Lengkapi Studio Kantor",
@@ -562,11 +617,45 @@ impl QuestState {
                 done: status.npc_chats_count >= 1,
             });
             list.push(QuestItemView {
-                id: "q8_grow_customers",
-                title: "Capai 80 Pelanggan Aktif",
-                detail: "Jaga kualitas produk & harga agar pelanggan terus tumbuh.",
-                xp_reward: 100,
-                done: market.active_users >= 80,
+                id: "q8_stage_3",
+                title: "Naik ke Stage 3: Growing Company",
+                detail: "Capai Level 3, 2 tim, 60 pelanggan & $8,000 lalu upgrade.",
+                xp_reward: 160,
+                done: false,
+            });
+        }
+
+        if matches!(
+            stage,
+            CompanyStage::GrowingCompany | CompanyStage::Corporation
+        ) {
+            list.push(QuestItemView {
+                id: "q9_second_product",
+                title: "Kembangkan Produk Ke-2",
+                detail: "Simpan produk lama ke portofolio & luncurkan produk ke-2.",
+                xp_reward: 140,
+                done: product.launched_count() >= 2,
+            });
+            list.push(QuestItemView {
+                id: "q10_hire_manager",
+                title: "Rekrut Manajer Kantor",
+                detail: "Pekerjakan Manajer di tab Tim agar stamina tim terjaga.",
+                xp_reward: 110,
+                done: employees.has_manager(),
+            });
+            list.push(QuestItemView {
+                id: "q11_stage_4",
+                title: "Capai Stage 4: Corporation",
+                detail: "Capai Level 4, 2 produk rilis, Manajer, 140 pelanggan & $18,000.",
+                xp_reward: 250,
+                done: stage == CompanyStage::Corporation,
+            });
+            list.push(QuestItemView {
+                id: "q12_market_leader",
+                title: "Kuasai Pasar (250+ Pelanggan)",
+                detail: "Kalahkan pesaing dengan promosi, kualitas & tim lengkap!",
+                xp_reward: 300,
+                done: market.active_users >= 250,
             });
         }
 
@@ -574,16 +663,30 @@ impl QuestState {
     }
 }
 
-fn spawn_courier_entity(commands: &mut Commands, asset_server: &AssetServer) {
+fn spawn_courier_entity(
+    commands: &mut Commands,
+    asset_server: &AssetServer,
+    stage: CompanyStage,
+) {
+    let uses_lobby = matches!(
+        stage,
+        CompanyStage::GrowingCompany | CompanyStage::Corporation
+    );
+    let (spawn_pos, target_pos) = if uses_lobby {
+        (Vec3::new(8.65, 0.0, 4.35), Vec3::new(8.65, 0.0, 1.85))
+    } else {
+        (Vec3::new(0.88, 0.0, 4.35), Vec3::new(0.88, 0.0, 2.75))
+    };
+
     commands.spawn((
         CourierNpc {
             arriving: true,
             leaving: false,
-            target_pos: Vec3::new(0.88, 0.0, 2.75),
+            target_pos,
             notified_arrival: false,
             active_anim: None,
         },
-        Transform::from_xyz(0.88, 0.0, 4.35),
+        Transform::from_translation(spawn_pos),
         Visibility::default(),
         WorldAssetRoot(asset_server.load(GltfAssetLabel::Scene(0).from_asset(COURIER_ASSET))),
     ));
@@ -764,6 +867,73 @@ fn handle_life_commands(
                     }
                 }
             }
+            LifeCommand::UpgradeToStage3 => {
+                match stage.can_upgrade_to_stage_3(&status, &employees, &market, &finance) {
+                    Ok(()) => {
+                        finance.record_transaction(
+                            clock.day,
+                            "Ekspansi ke Stage 3 (Growing Company + Lobby)",
+                            -STAGE_3_UPGRADE_COST,
+                            TransactionKind::OfficeUpgrade,
+                        );
+                        stage.current = CompanyStage::GrowingCompany;
+                        company.office_tier =
+                            CompanyStage::GrowingCompany.place_label().to_string();
+                        company.reputation = (company.reputation + 14.0).min(100.0);
+                        employees.max_employees = employees.max_employees.max(4);
+                        let leveled = status.gain_xp(180);
+                        pickup_sfx.write(PickupSoundEvent);
+                        notify.write(NotifyMessage::info(
+                            "Stage 3 Terbuka: Growing Company! Lobby Resepsionis & 4 slot tim kini aktif!",
+                        ));
+                        if leveled {
+                            notify.write(NotifyMessage::info(format!(
+                                "Level Founder naik ke Level {}!",
+                                status.level
+                            )));
+                        }
+                    }
+                    Err(err) => {
+                        notify.write(NotifyMessage::warn(err));
+                    }
+                }
+            }
+            LifeCommand::UpgradeToStage4 => {
+                match stage.can_upgrade_to_stage_4(
+                    &status,
+                    &employees,
+                    &product,
+                    &market,
+                    &finance,
+                ) {
+                    Ok(()) => {
+                        finance.record_transaction(
+                            clock.day,
+                            "Ekspansi Korporasi Stage 4",
+                            -STAGE_4_UPGRADE_COST,
+                            TransactionKind::OfficeUpgrade,
+                        );
+                        stage.current = CompanyStage::Corporation;
+                        company.office_tier = CompanyStage::Corporation.place_label().to_string();
+                        company.reputation = (company.reputation + 20.0).min(100.0);
+                        employees.max_employees = employees.max_employees.max(5);
+                        let leveled = status.gain_xp(260);
+                        pickup_sfx.write(PickupSoundEvent);
+                        notify.write(NotifyMessage::info(
+                            "Pencapaian Tertinggi! Usahamu resmi menjadi Stage 4: Corporation!",
+                        ));
+                        if leveled {
+                            notify.write(NotifyMessage::info(format!(
+                                "Level Founder naik ke Level {}!",
+                                status.level
+                            )));
+                        }
+                    }
+                    Err(err) => {
+                        notify.write(NotifyMessage::warn(err));
+                    }
+                }
+            }
         }
     }
 }
@@ -795,6 +965,7 @@ fn advance_deliveries_and_couriers(
     asset_server: Res<AssetServer>,
     time: Res<Time>,
     clock: Res<GameClock>,
+    stage: Res<CompanyStageState>,
     mut delivery: ResMut<DeliveryState>,
     mut courier_q: Query<(Entity, &mut Transform, &mut CourierNpc)>,
     mut notify: MessageWriter<NotifyMessage>,
@@ -817,12 +988,17 @@ fn advance_deliveries_and_couriers(
     }
 
     if any_arrived_order && courier_q.is_empty() {
-        spawn_courier_entity(&mut commands, &asset_server);
+        spawn_courier_entity(&mut commands, &asset_server, stage.current);
     }
+
+    let uses_lobby = matches!(
+        stage.current,
+        CompanyStage::GrowingCompany | CompanyStage::Corporation
+    );
 
     for (entity, mut tf, mut npc) in &mut courier_q {
         if npc.leaving {
-            let exit_target = Vec3::new(0.88, 0.0, 4.65);
+            let exit_target = Vec3::new(tf.translation.x, 0.0, 4.65);
             let diff = exit_target - tf.translation;
             if diff.length() < 0.08 {
                 commands.entity(entity).despawn();
@@ -842,13 +1018,19 @@ fn advance_deliveries_and_couriers(
                     npc.notified_arrival = true;
                     commands.entity(entity).insert(Interactable {
                         kind: InteractableKind::Courier,
-                        prompt: "Ambil Pesanan dari Kurir".into(),
-                        range: 2.7,
+                        prompt: if uses_lobby {
+                            "Ambil Pesanan dari Kurir di Lobby".into()
+                        } else {
+                            "Ambil Pesanan dari Kurir".into()
+                        },
+                        range: 2.9,
                         offset: Vec3::new(0.0, 1.0, 0.0),
                     });
-                    notify.write(NotifyMessage::info(
-                        "Ting-tong! Kurir tiba di depan pintu. Dekati & tekan [E] untuk ambil pesanan.",
-                    ));
+                    notify.write(NotifyMessage::info(if uses_lobby {
+                        "Kurir tiba di Lobby Resepsionis! Hampiri & tekan [E] untuk ambil paket."
+                    } else {
+                        "Ting-tong! Kurir tiba di depan pintu. Dekati & tekan [E] untuk ambil pesanan."
+                    }));
                 }
             } else {
                 tf.translation += diff.normalize() * 1.9 * dt;

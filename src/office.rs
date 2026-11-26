@@ -259,6 +259,20 @@ pub fn rebuild_colliders(colliders: &mut OfficeColliders, expansion: &OfficeExpa
             max_z: 1.95,
         });
     }
+    if colliders.room_max_x > 8.0 {
+        colliders.obstacles.push(Aabb2d {
+            min_x: 7.10,
+            max_x: 10.20,
+            min_z: -2.05,
+            max_z: -0.60,
+        });
+        colliders.obstacles.push(Aabb2d {
+            min_x: 8.05,
+            max_x: 9.45,
+            min_z: 0.55,
+            max_z: 1.45,
+        });
+    }
 }
 
 pub fn spawn_upgrade_visual(

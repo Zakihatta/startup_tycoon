@@ -14,12 +14,16 @@ use crate::{
     core::{GameClock, NotificationFeed, SimSpeed},
     economy::FinanceState,
     employee::{EmployeeCommand, EmployeeState},
+    events::CompetitorState,
     interaction::{ActiveInteractionTarget, InteractTriggered, InteractableKind},
     life::{DeliveryState, LifeCommand},
     market::{MarketCommand, MarketState},
     office::{OfficeExpansionState, OfficeUpgradeKind},
     player::{CameraMode, PlayerController},
-    product::{ProductCommand, ProductPhase, ProductState, PRODUCT_DAILY_DEV_COST, PRODUCT_START_COST},
+    product::{
+        ProductCommand, ProductPhase, ProductState, PRODUCT_DAILY_DEV_COST, PRODUCT_POLISH_COST,
+        PRODUCT_START_COST,
+    },
     save_system::SaveGameCommand,
 };
 
@@ -90,6 +94,7 @@ pub enum ActiveModal {
     Workstation,
     MainMenu,
     NpcDialog(u32),
+    EventChoice,
 }
 
 #[derive(Resource, Default)]
@@ -114,6 +119,11 @@ impl WorkstationUiState {
     pub fn open_npc_dialog(&mut self, employee_id: u32) {
         self.is_open = true;
         self.modal = ActiveModal::NpcDialog(employee_id);
+    }
+
+    pub fn open_event_choice(&mut self) {
+        self.is_open = true;
+        self.modal = ActiveModal::EventChoice;
     }
 
     pub fn close_all(&mut self) {
@@ -182,6 +192,9 @@ struct ProductProgressBarFill;
 
 #[derive(Component)]
 struct ProductLaunchButton;
+
+#[derive(Component)]
+struct ProductPolishButton;
 
 #[derive(Component)]
 struct ActionButton;
@@ -832,6 +845,8 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                                         ("Toko Kue & Katering", "Kuliner & Belanja"),
                                         ("Catatan Keuangan", "Keuangan Harian"),
                                         ("Kelas Belajar Online", "Edukasi & Kursus"),
+                                        ("Jasa Desain & Konten", "Kreatif & Media"),
+                                        ("Layanan Antar Harian", "Kurir & Logistik"),
                                     ] {
                                         let name_owned = name.to_string();
                                         let cat_owned = cat.to_string();
@@ -848,11 +863,19 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                                             ))
                                             .observe(
                                                 move |_: On<Activate>,
+                                                      product: Res<ProductState>,
                                                       mut writer: MessageWriter<ProductCommand>| {
-                                                    writer.write(ProductCommand::StartProject {
-                                                        name: name_owned.clone(),
-                                                        category: cat_owned.clone(),
-                                                    });
+                                                    if product.active.is_none() {
+                                                        writer.write(ProductCommand::StartProject {
+                                                            name: name_owned.clone(),
+                                                            category: cat_owned.clone(),
+                                                        });
+                                                    } else {
+                                                        writer.write(ProductCommand::StartNextProject {
+                                                            name: name_owned.clone(),
+                                                            category: cat_owned.clone(),
+                                                        });
+                                                    }
                                                 },
                                             )
                                             .with_children(|b| {
@@ -862,7 +885,7 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                                                         format_money(PRODUCT_START_COST)
                                                     )),
                                                     TextFont {
-                                                        font_size: FontSize::Px(14.0),
+                                                        font_size: FontSize::Px(13.5),
                                                         ..default()
                                                     },
                                                     TextColor(Color::WHITE),
@@ -897,6 +920,41 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                                         Text::new("Rilis Produk Sekarang!"),
                                         TextFont {
                                             font_size: FontSize::Px(15.0),
+                                            ..default()
+                                        },
+                                        TextColor(Color::WHITE),
+                                    ));
+                                });
+
+                            // Polish/Update button (shown when Launched)
+                            prod_box
+                                .spawn((
+                                    ProductPolishButton,
+                                    ActionButton,
+                                    Visibility::Hidden,
+                                    Button,
+                                    Hovered::default(),
+                                    Node {
+                                        display: Display::None,
+                                        align_self: AlignSelf::FlexStart,
+                                        padding: UiRect::axes(px(14.0), px(8.0)),
+                                        ..default()
+                                    },
+                                    BackgroundColor(Color::srgb(0.20, 0.48, 0.72)),
+                                ))
+                                .observe(
+                                    |_: On<Activate>, mut writer: MessageWriter<ProductCommand>| {
+                                        writer.write(ProductCommand::PolishActiveProduct);
+                                    },
+                                )
+                                .with_children(|b| {
+                                    b.spawn((
+                                        Text::new(format!(
+                                            "Perbaiki & Update Kualitas ({})",
+                                            format_money(PRODUCT_POLISH_COST)
+                                        )),
+                                        TextFont {
+                                            font_size: FontSize::Px(13.5),
                                             ..default()
                                         },
                                         TextColor(Color::WHITE),
@@ -958,7 +1016,9 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                                     EmployeeHireGroup,
                                     Node {
                                         flex_direction: FlexDirection::Row,
-                                        column_gap: px(12.0),
+                                        flex_wrap: FlexWrap::Wrap,
+                                        column_gap: px(10.0),
+                                        row_gap: px(10.0),
                                         ..default()
                                     },
                                 ))
@@ -976,21 +1036,48 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                                         (
                                             1usize,
                                             "Sinta Wijaya",
-                                            "Perancang & Pembuat",
+                                            "Perancang Tampilan",
                                             1.8f32,
                                             240i64,
                                             1_000i64,
                                             "characters/employees/portraits/developer_02.png",
+                                        ),
+                                        (
+                                            2usize,
+                                            "Bima Kusuma",
+                                            "Pemeriksa Kualitas",
+                                            1.5f32,
+                                            190i64,
+                                            850i64,
+                                            "characters/employees/portraits/developer_01.png",
+                                        ),
+                                        (
+                                            3usize,
+                                            "Nadia Putri",
+                                            "Tim Promosi",
+                                            1.6f32,
+                                            210i64,
+                                            950i64,
+                                            "characters/employees/portraits/developer_02.png",
+                                        ),
+                                        (
+                                            4usize,
+                                            "Hendra Santoso",
+                                            "Manajer Kantor",
+                                            2.0f32,
+                                            320i64,
+                                            1_600i64,
+                                            "characters/employees/portraits/developer_01.png",
                                         ),
                                     ] {
                                         cands
                                             .spawn((
                                                 Node {
                                                     flex_direction: FlexDirection::Column,
-                                                    row_gap: px(8.0),
-                                                    padding: UiRect::all(px(12.0)),
+                                                    row_gap: px(6.0),
+                                                    padding: UiRect::all(px(10.0)),
                                                     border: UiRect::all(px(1.0)),
-                                                    width: px(310.0),
+                                                    width: px(228.0),
                                                     ..default()
                                                 },
                                                 BackgroundColor(Color::srgb(0.10, 0.13, 0.19)),
@@ -1295,7 +1382,9 @@ fn handle_workstation_close(
         return;
     }
 
-    if keys.just_pressed(KeyCode::Escape) || keys.just_pressed(KeyCode::KeyE) {
+    if (keys.just_pressed(KeyCode::Escape) || keys.just_pressed(KeyCode::KeyE))
+        && ui_state.modal != ActiveModal::EventChoice
+    {
         ui_state.close_all();
         return;
     }
@@ -1592,19 +1681,64 @@ fn update_overview_tab(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn update_product_tab(
     ui_state: Res<WorkstationUiState>,
     product: Res<ProductState>,
     mut product_q: Query<&mut Text, With<ProductBodyText>>,
-    mut starter_q: Query<(&mut Visibility, &mut Node), (With<ProductStarterGroup>, Without<ProductLaunchButton>, Without<ProductProgressBarFill>)>,
-    mut launch_q: Query<(&mut Visibility, &mut Node), (With<ProductLaunchButton>, Without<ProductStarterGroup>, Without<ProductProgressBarFill>)>,
-    mut fill_q: Query<&mut Node, (With<ProductProgressBarFill>, Without<ProductStarterGroup>, Without<ProductLaunchButton>)>,
+    mut starter_q: Query<
+        (&mut Visibility, &mut Node),
+        (
+            With<ProductStarterGroup>,
+            Without<ProductLaunchButton>,
+            Without<ProductPolishButton>,
+            Without<ProductProgressBarFill>,
+        ),
+    >,
+    mut launch_q: Query<
+        (&mut Visibility, &mut Node),
+        (
+            With<ProductLaunchButton>,
+            Without<ProductStarterGroup>,
+            Without<ProductPolishButton>,
+            Without<ProductProgressBarFill>,
+        ),
+    >,
+    mut polish_q: Query<
+        (&mut Visibility, &mut Node),
+        (
+            With<ProductPolishButton>,
+            Without<ProductStarterGroup>,
+            Without<ProductLaunchButton>,
+            Without<ProductProgressBarFill>,
+        ),
+    >,
+    mut fill_q: Query<
+        &mut Node,
+        (
+            With<ProductProgressBarFill>,
+            Without<ProductStarterGroup>,
+            Without<ProductLaunchButton>,
+            Without<ProductPolishButton>,
+        ),
+    >,
 ) {
     if !ui_state.is_open || (!ui_state.is_changed() && !product.is_changed()) {
         return;
     }
 
     if let Ok(mut text) = product_q.single_mut() {
+        let portfolio_txt = if product.launched_portfolio.is_empty() {
+            String::new()
+        } else {
+            let names: Vec<String> = product
+                .launched_portfolio
+                .iter()
+                .map(|p| format!("{} v{}", p.name, p.version))
+                .collect();
+            format!("\n• Portofolio Rilis: {}", names.join(", "))
+        };
+
         if let Some(p) = &product.active {
             let launch_info = match p.launch_day {
                 Some(d) => format!("Hari {d}"),
@@ -1612,14 +1746,15 @@ fn update_product_tab(
             };
             text.0 = format!(
                 "Pembuatan & Peluncuran Produk\n\
-                 • Nama Produk   : {}\n\
+                 • Nama Produk   : {} (v{})\n\
                  • Bidang        : {}\n\
                  • Tahap         : {}\n\
                  • Progres Tahap : {:.0}%\n\
                  • Kualitas      : {:.1} / 100\n\
                  • Mulai / Rilis : Hari {} / {}\n\
-                 • Biaya Harian  : -{}/hari (saat dibuat & dicek)",
+                 • Biaya Harian  : -{}/hari (saat dibuat & dicek){}",
                 p.name,
+                p.version,
                 p.category,
                 p.phase.label(),
                 p.progress,
@@ -1627,12 +1762,14 @@ fn update_product_tab(
                 p.start_day,
                 launch_info,
                 format_money(PRODUCT_DAILY_DEV_COST),
+                portfolio_txt,
             );
         } else {
             text.0 = format!(
                 "Belum Ada Produk Aktif\n\
-                 Pilih salah satu ide produk usaha di bawah untuk mulai membangun (modal awal {}):",
-                format_money(PRODUCT_START_COST)
+                 Pilih salah satu ide produk usaha di bawah untuk mulai membangun (modal awal {}):{}",
+                format_money(PRODUCT_START_COST),
+                portfolio_txt
             );
         }
     }
@@ -1642,8 +1779,13 @@ fn update_product_tab(
         fill_node.width = percent(pct);
     }
 
+    let is_launched = product
+        .active
+        .as_ref()
+        .is_some_and(|p| p.phase == ProductPhase::Launched);
+
     if let Ok((mut s_vis, mut s_node)) = starter_q.single_mut() {
-        let show = product.active.is_none();
+        let show = product.active.is_none() || is_launched;
         *s_vis = if show { Visibility::Inherited } else { Visibility::Hidden };
         s_node.display = if show { Display::Flex } else { Display::None };
     }
@@ -1655,6 +1797,19 @@ fn update_product_tab(
             .is_some_and(|p| p.phase == ProductPhase::ReadyToLaunch);
         *l_vis = if show { Visibility::Inherited } else { Visibility::Hidden };
         l_node.display = if show { Display::Flex } else { Display::None };
+    }
+
+    if let Ok((mut p_vis, mut p_node)) = polish_q.single_mut() {
+        *p_vis = if is_launched {
+            Visibility::Inherited
+        } else {
+            Visibility::Hidden
+        };
+        p_node.display = if is_launched {
+            Display::Flex
+        } else {
+            Display::None
+        };
     }
 }
 
@@ -1720,20 +1875,23 @@ fn update_market_tab(
     ui_state: Res<WorkstationUiState>,
     product: Res<ProductState>,
     market: Res<MarketState>,
+    competitors: Res<CompetitorState>,
     mut market_q: Query<&mut Text, With<MarketBodyText>>,
 ) {
-    if !ui_state.is_open || (!ui_state.is_changed() && !product.is_changed() && !market.is_changed()) {
+    if !ui_state.is_open
+        || (!ui_state.is_changed()
+            && !product.is_changed()
+            && !market.is_changed()
+            && !competitors.is_changed())
+    {
         return;
     }
 
     if let Ok(mut text) = market_q.single_mut() {
-        let is_launched = product
-            .active
-            .as_ref()
-            .is_some_and(|p| p.phase == ProductPhase::Launched);
+        let is_launched = product.launched_count() > 0;
 
         let mut hist_lines = String::new();
-        for snap in market.history.iter().rev().take(6) {
+        for snap in market.history.iter().rev().take(5) {
             hist_lines.push_str(&format!(
                 "\n  [Hari {:>2}] +{} baru / -{} berhenti | {} pelanggan | +{}",
                 snap.day,
@@ -1751,20 +1909,34 @@ fn update_market_tab(
             });
         }
 
+        let mut comp_lines = String::new();
+        for r in &competitors.rivals {
+            let status_cmp = if market.active_users >= r.users {
+                "UNGGL"
+            } else {
+                "Mengejar"
+            };
+            comp_lines.push_str(&format!(
+                "\n  • {} — {} pelanggan (Mutu {:.0}) [{status_cmp}]",
+                r.name, r.users, r.quality
+            ));
+        }
+
         text.0 = format!(
-            "Laporan Pelanggan & Penjualan\n\
+            "Laporan Pelanggan & Pesaing\n\
              • Minat Pasar        : {} ({:.2}x)\n\
              • Harga Jual         : {}/bln (Pelanggan berhenti {:.1}%/hari)\n\
-             • Pelanggan Aktif    : {} orang\n\
-             • Pemasukan Hari Lalu: {}\n\n\
+             • Pelanggan Aktif    : {} orang | Pemasukan Lalu: {}\n\n\
+             Pesaing di Pasar:{}\n\n\
              Catatan Harian:{}\n\n\
-             Atur Harga Jual (terjangkau = cepat ramai, premium = untung besar per orang):",
+             Atur Harga Jual:",
             market.demand_label(),
             market.base_demand,
             format_money(market.price_per_month),
             market.churn_rate() * 100.0,
             market.active_users,
             format_money(market.last_daily_revenue),
+            comp_lines,
             hist_lines,
         );
     }
