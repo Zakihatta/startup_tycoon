@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
-    f32::consts::PI,
+    f32::consts::{FRAC_PI_2, PI},
     time::Duration,
 };
 
@@ -9,6 +9,7 @@ use crate::{
     company::CompanyState,
     core::{DayPassedMessage, GameClock, NotifyMessage},
     economy::{FinanceState, TransactionKind},
+    office::OfficeExpansionState,
     product::{ProductPhase, ProductState},
 };
 
@@ -72,6 +73,8 @@ pub struct EmployeeProfile {
     pub daily_salary: i64,
     pub portrait_path: String,
     pub state: EmployeeWorkState,
+    #[serde(default)]
+    pub desk_index: usize,
 }
 
 #[derive(Resource, Debug)]
@@ -124,6 +127,9 @@ impl EmployeeState {
             .get(candidate_idx)
             .ok_or("Kandidat tidak ditemukan.")?
             .clone();
+        if self.roster.iter().any(|e| e.id == cand.id) {
+            return Err("Kandidat ini sudah direkrut.");
+        }
         if finance.cash_balance < cand.hiring_fee {
             return Err("Kas tidak cukup untuk biaya rekrutmen.");
         }
@@ -135,6 +141,7 @@ impl EmployeeState {
             TransactionKind::Salary,
         );
 
+        let desk_index = self.roster.len();
         let profile = EmployeeProfile {
             id: cand.id,
             name: cand.name,
@@ -143,6 +150,7 @@ impl EmployeeState {
             daily_salary: cand.daily_salary,
             portrait_path: cand.portrait_path.to_string(),
             state: EmployeeWorkState::WalkingToDesk,
+            desk_index,
         };
         self.roster.push(profile.clone());
         company.team_size = 1 + self.roster.len() as u32;
@@ -169,6 +177,7 @@ pub struct DeveloperNpc {
     pub waypoints: Vec<Vec3>,
     pub wp_index: usize,
     pub seated: bool,
+    pub seat_yaw: f32,
     pub facing_yaw: f32,
     pub active_anim: Option<usize>,
 }
@@ -212,9 +221,25 @@ pub fn spawn_developer_npc(
     commands: &mut Commands,
     asset_server: &AssetServer,
     employee_id: u32,
+    desk_index: usize,
     already_seated: bool,
 ) {
-    let desk_chair_pos = Vec3::new(1.3, 0.0, -0.82);
+    let (desk_chair_pos, seat_yaw, approach_wps) = if desk_index == 1 {
+        let chair = Vec3::new(-1.37, 0.0, 0.60);
+        (
+            chair,
+            FRAC_PI_2,
+            vec![Vec3::new(0.2, 0.0, 0.9), Vec3::new(-0.7, 0.0, 0.60), chair],
+        )
+    } else {
+        let chair = Vec3::new(1.3, 0.0, -0.82);
+        (
+            chair,
+            0.0,
+            vec![Vec3::new(0.5, 0.0, 0.3), Vec3::new(1.3, 0.0, -0.35), chair],
+        )
+    };
+
     let spawn_pos = if already_seated {
         desk_chair_pos
     } else {
@@ -223,22 +248,19 @@ pub fn spawn_developer_npc(
     let waypoints = if already_seated {
         Vec::new()
     } else {
-        vec![
-            Vec3::new(0.5, 0.0, 0.3),
-            Vec3::new(1.3, 0.0, -0.35),
-            desk_chair_pos,
-        ]
+        approach_wps
     };
 
     commands.spawn((
-        Transform::from_translation(spawn_pos),
+        Transform::from_translation(spawn_pos).with_rotation(Quat::from_rotation_y(seat_yaw)),
         Visibility::default(),
         DeveloperNpc {
             employee_id,
             waypoints,
             wp_index: 0,
             seated: already_seated,
-            facing_yaw: 0.0,
+            seat_yaw,
+            facing_yaw: seat_yaw,
             active_anim: None,
         },
         WorldAssetRoot(asset_server.load(GltfAssetLabel::Scene(0).from_asset(DEVELOPER_ASSET))),
@@ -264,7 +286,13 @@ fn handle_employee_commands(
                             "Developer '{}' bergabung ke tim!",
                             profile.name
                         )));
-                        spawn_developer_npc(&mut commands, &asset_server, profile.id, false);
+                        spawn_developer_npc(
+                            &mut commands,
+                            &asset_server,
+                            profile.id,
+                            profile.desk_index,
+                            false,
+                        );
                     }
                     Err(err) => {
                         notify.write(NotifyMessage::warn(err));
@@ -308,8 +336,8 @@ fn move_developer_npcs(
                     npc.wp_index += 1;
                     if npc.wp_index >= npc.waypoints.len() {
                         npc.seated = true;
-                        npc.facing_yaw = 0.0; // Faces -Z toward desk & monitor
-                        tf.rotation = Quat::IDENTITY;
+                        npc.facing_yaw = npc.seat_yaw;
+                        tf.rotation = Quat::from_rotation_y(npc.seat_yaw);
                     }
                 } else if dt > 0.0 {
                     let dir = Vec3::new(to_target.x, 0.0, to_target.z).normalize();
@@ -456,9 +484,11 @@ fn sync_developer_animations(
 
 fn sync_employee_productivity(
     employees: Res<EmployeeState>,
+    expansion: Res<OfficeExpansionState>,
     mut product: ResMut<ProductState>,
 ) {
-    let bonus = employees.productivity_bonus();
+    let whiteboard_bonus = if expansion.has_whiteboard() { 0.4 } else { 0.0 };
+    let bonus = employees.productivity_bonus() + whiteboard_bonus;
     if (product.total_productivity_bonus - bonus).abs() > 1e-4 {
         product.total_productivity_bonus = bonus;
     }

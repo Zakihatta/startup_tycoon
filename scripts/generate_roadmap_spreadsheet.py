@@ -56,8 +56,8 @@ TASKS = [
     ("T-28", "MVP Core", "M7 - MVP Integration", "QA/Release", "Balancing ekonomi & playtest penuh gameplay loop MVP", "Must-Have", "Done", "src/main.rs (mvp_integration_tests)", "Test loop penuh lulus (12/12 test) mencapai profit"),
 
     # M8 - Office Expansion
-    ("T-29", "Post-MVP", "M8 - Office Expansion", "Asset 3D", "Tambah aset furniture lanjutan (sofa, meeting table, whiteboard, tanaman, server)", "Medium", "To Do", "assets/furniture/; assets/equipment/", "Sesuai daftar Future di ASSETS_PREPARATION.md"),
-    ("T-30", "Post-MVP", "M8 - Office Expansion", "Engine/Code", "Sistem beli/sewa ruang baru & grid building placement (1m)", "Medium", "To Do", "src/building.rs (planned)", "Pasang desk/chair/PC baru secara dinamis"),
+    ("T-29", "Post-MVP", "M8 - Office Expansion", "Asset 3D", "Tambah aset furniture lanjutan (sofa, meeting table, whiteboard, tanaman, server)", "Medium", "Done", "assets/furniture/*.glb; assets/equipment/equipment_server_rack.glb", "Sofa, plant, whiteboard, server rack (.glb tervalidasi)"),
+    ("T-30", "Post-MVP", "M8 - Office Expansion", "Engine/Code", "Sistem beli/sewa ruang baru & grid building placement (1m)", "Medium", "Done", "src/office.rs; src/ui/mod.rs; src/save_system/mod.rs", "Tab Office: 5 upgrade + workstation Dev #2 + save/load layout"),
 
     # M9 - Save System (Included in MVP per docs/GDD/development/mvp_scope.md)
     ("T-31", "MVP Core", "M9 - Save System", "Engine/Code", "Implementasi Save/Load state perusahaan, karyawan, produk, & layout", "Must-Have", "Done", "src/save_system/mod.rs; src/ui/mod.rs", "Format RON (saves/savegame.ron), F5/F9 + validasi + 2 test"),
@@ -88,7 +88,7 @@ ASSETS = [
     ("Employee Portraits", "UI", "Procedural (scripts/generate_portraits.py)", "PNG", "Project Original", "Tested", "assets/characters/employees/portraits/", "developer_01.png & developer_02.png (M5)"),
     ("UI Icon Set", "UI", "Procedural (scripts/generate_ui_icons.py)", "PNG", "Project Original", "Tested", "assets/ui/icons/", "6 ikon 64x64 RGBA: money, time, company, employee, product, settings"),
     ("UI Font", "UI", "TBD", "TTF/OTF", "TBD", "Needed", "assets/fonts/", "Font UI berlisensi komersial (M3)"),
-    ("Furniture Lanjutan", "Furniture", "TBD", "GLB", "TBD", "Needed", "assets/furniture/", "Sofa, meeting table, whiteboard, tanaman (M8)"),
+    ("Furniture Lanjutan", "Furniture", "Procedural (scripts/generate_office_assets.py)", "GLB", "Project Original", "Tested", "assets/furniture/; assets/equipment/", "Sofa, plant pot, whiteboard, server rack (M8)"),
     ("Audio SFX & Ambience", "Audio", "TBD", "OGG", "TBD", "Needed", "assets/audio/", "UI click, footsteps, typing, door, BGM (M10)"),
 ]
 

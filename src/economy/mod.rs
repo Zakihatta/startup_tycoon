@@ -19,6 +19,7 @@ pub enum TransactionKind {
     Rent,
     Salary,
     ProductCost,
+    OfficeUpgrade,
     Revenue,
 }
 
@@ -29,6 +30,7 @@ impl TransactionKind {
             TransactionKind::Rent => "SEWA",
             TransactionKind::Salary => "GAJI",
             TransactionKind::ProductCost => "PRODUK",
+            TransactionKind::OfficeUpgrade => "KANTOR",
             TransactionKind::Revenue => "OMZET",
         }
     }

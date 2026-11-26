@@ -5,6 +5,7 @@ use crate::{
     company::CompanyState,
     core::{DayPassedMessage, NotifyMessage},
     economy::{FinanceState, TransactionKind},
+    office::OfficeExpansionState,
     product::{ProductPhase, ProductState},
 };
 
@@ -133,6 +134,7 @@ fn handle_market_commands(
 fn process_daily_market(
     mut day_reader: MessageReader<DayPassedMessage>,
     product: Res<ProductState>,
+    expansion: Res<OfficeExpansionState>,
     mut company: ResMut<CompanyState>,
     mut market: ResMut<MarketState>,
     mut finance: ResMut<FinanceState>,
@@ -146,7 +148,8 @@ fn process_daily_market(
     }
 
     for ev in day_reader.read() {
-        let snap = market.simulate_day(ev.new_day, prod.quality, company.reputation);
+        let rep_eff = company.reputation + if expansion.has_server_rack() { 6.0 } else { 0.0 };
+        let snap = market.simulate_day(ev.new_day, prod.quality, rep_eff);
         if snap.revenue > 0 {
             finance.record_transaction(
                 ev.new_day,

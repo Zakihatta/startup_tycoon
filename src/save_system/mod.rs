@@ -14,7 +14,10 @@ use crate::{
     },
     interaction::Interactable,
     market::MarketState,
-    office::OfficeDoor,
+    office::{
+        rebuild_colliders, spawn_upgrade_visual, OfficeColliders, OfficeDoor,
+        OfficeExpansionState, OfficeUpgradeKind, PurchasedOfficeProp,
+    },
     player::PlayerController,
     product::ProductState,
 };
@@ -52,6 +55,8 @@ pub struct SaveGameData {
     pub product: ProductState,
     pub employees: Vec<EmployeeProfile>,
     pub market: MarketState,
+    #[serde(default)]
+    pub office_expansion: OfficeExpansionState,
     pub player_pos: [f32; 3],
     pub player_yaw: f32,
     pub door_open: bool,
@@ -126,9 +131,12 @@ fn process_save_commands(
     mut product: ResMut<ProductState>,
     mut employees: ResMut<EmployeeState>,
     mut market: ResMut<MarketState>,
+    mut expansion: ResMut<OfficeExpansionState>,
+    mut colliders: ResMut<OfficeColliders>,
     mut player_q: Query<(&mut Transform, &mut PlayerController)>,
     mut door_q: Query<(&mut OfficeDoor, &mut Interactable)>,
-    npc_q: Query<Entity, With<DeveloperNpc>>,
+    npc_q: Query<Entity, (With<DeveloperNpc>, Without<PurchasedOfficeProp>)>,
+    prop_q: Query<Entity, (With<PurchasedOfficeProp>, Without<DeveloperNpc>)>,
     mut notify: MessageWriter<NotifyMessage>,
 ) {
     let save_path = resolve_save_path();
@@ -154,6 +162,7 @@ fn process_save_commands(
                     product: product.clone(),
                     employees: employees.roster.clone(),
                     market: market.clone(),
+                    office_expansion: expansion.clone(),
                     player_pos,
                     player_yaw,
                     door_open,
@@ -179,6 +188,14 @@ fn process_save_commands(
                     *finance = data.finance;
                     *product = data.product;
                     *market = data.market;
+                    *expansion = data.office_expansion;
+
+                    employees.max_employees =
+                        if expansion.is_purchased(OfficeUpgradeKind::ExtraWorkstation) {
+                            2
+                        } else {
+                            1
+                        };
 
                     if data.employees.len() <= employees.max_employees {
                         employees.roster = data.employees;
@@ -204,12 +221,26 @@ fn process_save_commands(
                         };
                     }
 
+                    for prop_entity in &prop_q {
+                        commands.entity(prop_entity).despawn();
+                    }
+                    for &kind in &expansion.purchased {
+                        spawn_upgrade_visual(&mut commands, &asset_server, kind);
+                    }
+                    rebuild_colliders(&mut colliders, &expansion);
+
                     for npc_entity in &npc_q {
                         commands.entity(npc_entity).despawn();
                     }
                     for emp in &employees.roster {
                         let seated = emp.state != EmployeeWorkState::WalkingToDesk;
-                        spawn_developer_npc(&mut commands, &asset_server, emp.id, seated);
+                        spawn_developer_npc(
+                            &mut commands,
+                            &asset_server,
+                            emp.id,
+                            emp.desk_index,
+                            seated,
+                        );
                     }
 
                     notify.write(NotifyMessage::info(format!(
@@ -254,8 +285,10 @@ mod tests {
                 daily_salary: 160,
                 portrait_path: "characters/employees/portraits/developer_01.png".to_string(),
                 state: EmployeeWorkState::Working,
+                desk_index: 0,
             }],
             market: MarketState::default(),
+            office_expansion: OfficeExpansionState::default(),
             player_pos: [0.5, 0.0, 1.0],
             player_yaw: 0.4,
             door_open: true,

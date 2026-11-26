@@ -13,6 +13,7 @@ use crate::{
     employee::{EmployeeCommand, EmployeeState},
     interaction::{ActiveInteractionTarget, InteractTriggered, InteractableKind},
     market::{MarketCommand, MarketState},
+    office::{OfficeExpansionState, OfficeUpgradeCommand, OfficeUpgradeKind},
     player::{CameraMode, PlayerController},
     product::{ProductCommand, ProductPhase, ProductState, PRODUCT_DAILY_DEV_COST, PRODUCT_START_COST},
     save_system::SaveGameCommand,
@@ -33,6 +34,7 @@ impl Plugin for GameUiPlugin {
                     update_speed_button_styles,
                     update_tab_button_styles,
                     update_price_button_styles,
+                    update_office_button_styles,
                     update_action_button_styles,
                     update_interaction_prompt,
                     sync_workstation_modal_visibility,
@@ -40,6 +42,7 @@ impl Plugin for GameUiPlugin {
                     update_product_tab,
                     update_employee_tab,
                     update_market_tab,
+                    update_office_tab,
                     update_finance_tab,
                     update_toast_notifications,
                 ),
@@ -54,6 +57,7 @@ pub enum WorkstationTab {
     Product,
     Employee,
     Market,
+    Office,
     Finance,
 }
 
@@ -132,6 +136,12 @@ struct MarketBodyText;
 
 #[derive(Component, Clone, Copy)]
 struct PriceButton(i64);
+
+#[derive(Component)]
+struct OfficeBodyText;
+
+#[derive(Component, Clone, Copy)]
+struct OfficeUpgradeButton(OfficeUpgradeKind);
 
 #[derive(Component)]
 struct FinanceBodyText;
@@ -473,7 +483,8 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                                 (WorkstationTab::Overview, "Overview", icon_company.clone()),
                                 (WorkstationTab::Product, "Product", icon_product),
                                 (WorkstationTab::Employee, "Employee", icon_employee),
-                                (WorkstationTab::Market, "Market", icon_settings),
+                                (WorkstationTab::Market, "Market", icon_settings.clone()),
+                                (WorkstationTab::Office, "Office", icon_settings),
                                 (WorkstationTab::Finance, "Finance", icon_money),
                             ] {
                                 tabs.spawn((
@@ -986,6 +997,81 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                                 });
                         });
 
+                    // Office Expansion Tab Container
+                    panel
+                        .spawn((
+                            TabPanel(WorkstationTab::Office),
+                            Visibility::Hidden,
+                            Node {
+                                display: Display::None,
+                                flex_direction: FlexDirection::Column,
+                                row_gap: px(10.0),
+                                padding: UiRect::all(px(14.0)),
+                                ..default()
+                            },
+                            BackgroundColor(Color::srgb(0.14, 0.18, 0.25)),
+                        ))
+                        .with_children(|off_box| {
+                            off_box.spawn((
+                                OfficeBodyText,
+                                Text::new("Loading office expansion..."),
+                                TextFont {
+                                    font_size: FontSize::Px(14.5),
+                                    ..default()
+                                },
+                                TextColor(Color::srgb(0.92, 0.94, 0.98)),
+                            ));
+
+                            off_box
+                                .spawn(Node {
+                                    flex_direction: FlexDirection::Row,
+                                    flex_wrap: FlexWrap::Wrap,
+                                    column_gap: px(8.0),
+                                    row_gap: px(8.0),
+                                    ..default()
+                                })
+                                .with_children(|grid| {
+                                    for kind in OfficeUpgradeKind::ALL {
+                                        grid.spawn((
+                                            OfficeUpgradeButton(kind),
+                                            Button,
+                                            Hovered::default(),
+                                            Node {
+                                                width: px(214.0),
+                                                flex_direction: FlexDirection::Column,
+                                                row_gap: px(4.0),
+                                                padding: UiRect::all(px(10.0)),
+                                                border: UiRect::all(px(1.0)),
+                                                ..default()
+                                            },
+                                            BackgroundColor(Color::srgb(0.18, 0.23, 0.31)),
+                                            BorderColor::all(Color::srgb(0.24, 0.34, 0.46)),
+                                        ))
+                                        .observe(
+                                            move |_: On<Activate>,
+                                                  mut writer: MessageWriter<OfficeUpgradeCommand>| {
+                                                writer.write(OfficeUpgradeCommand::Buy(kind));
+                                            },
+                                        )
+                                        .with_children(|b| {
+                                            b.spawn((
+                                                Text::new(format!(
+                                                    "{} ({})\n{}",
+                                                    kind.label(),
+                                                    format_money(kind.cost()),
+                                                    kind.effect_summary()
+                                                )),
+                                                TextFont {
+                                                    font_size: FontSize::Px(13.0),
+                                                    ..default()
+                                                },
+                                                TextColor(Color::WHITE),
+                                            ));
+                                        });
+                                    }
+                                });
+                        });
+
                     // Finance Body
                     panel.spawn((
                         TabPanel(WorkstationTab::Finance),
@@ -1171,6 +1257,23 @@ fn update_price_button_styles(
     for (btn, hovered, pressed, mut bg) in &mut btn_q {
         if pressed.is_some() || market.price_per_month == btn.0 {
             *bg = BackgroundColor(Color::srgb(0.16, 0.56, 0.42));
+        } else if hovered.get() {
+            *bg = BackgroundColor(Color::srgb(0.28, 0.35, 0.46));
+        } else {
+            *bg = BackgroundColor(Color::srgb(0.18, 0.23, 0.31));
+        }
+    }
+}
+
+fn update_office_button_styles(
+    expansion: Res<OfficeExpansionState>,
+    mut btn_q: Query<(&OfficeUpgradeButton, &Hovered, Option<&Pressed>, &mut BackgroundColor)>,
+) {
+    for (btn, hovered, pressed, mut bg) in &mut btn_q {
+        if expansion.is_purchased(btn.0) {
+            *bg = BackgroundColor(Color::srgb(0.14, 0.42, 0.32));
+        } else if pressed.is_some() {
+            *bg = BackgroundColor(Color::srgb(0.12, 0.44, 0.33));
         } else if hovered.get() {
             *bg = BackgroundColor(Color::srgb(0.28, 0.35, 0.46));
         } else {
@@ -1394,24 +1497,30 @@ fn update_employee_tab(
     }
 
     if let Ok(mut text) = employee_q.single_mut() {
-        if let Some(emp) = employees.roster.first() {
+        if employees.roster.is_empty() {
             text.0 = format!(
-                "Karyawan Aktif (1 / {} Workstation)\n\
-                 • Nama     : {}\n\
-                 • Role     : {}\n\
-                 • Skill    : {:.1}x (Bonus dev +{:.1}%/jam)\n\
-                 • Gaji     : -{}/hari\n\
-                 • Status   : {}",
-                employees.max_employees,
-                emp.name,
-                emp.role,
-                emp.skill,
-                emp.skill * 1.8,
-                format_money(emp.daily_salary),
-                emp.state.label(),
+                "Belum ada karyawan (0 / {} Workstation Dev tersedia).\n\
+                 Pilih kandidat Developer di bawah:",
+                employees.max_employees
             );
         } else {
-            text.0 = "Belum ada karyawan. Pilih kandidat Developer untuk mempercepat pengembangan produk:".to_string();
+            let mut summary = format!(
+                "Tim Aktif ({} / {} Workstation Dev):\n",
+                employees.roster.len(),
+                employees.max_employees
+            );
+            for emp in &employees.roster {
+                summary.push_str(&format!(
+                    "• {} ({}) — Skill {:.1}x (+{:.1}%/jam) | -{}/hr | {}\n",
+                    emp.name,
+                    emp.role,
+                    emp.skill,
+                    emp.skill * 1.8,
+                    format_money(emp.daily_salary),
+                    emp.state.label(),
+                ));
+            }
+            text.0 = summary.trim_end().to_string();
         }
     }
 
@@ -1483,6 +1592,30 @@ fn update_market_tab(
             market.active_users,
             format_money(market.last_daily_revenue),
             hist_lines,
+        );
+    }
+}
+
+fn update_office_tab(
+    ui_state: Res<WorkstationUiState>,
+    expansion: Res<OfficeExpansionState>,
+    company: Res<CompanyState>,
+    mut office_q: Query<&mut Text, With<OfficeBodyText>>,
+) {
+    if !ui_state.is_open
+        || (!ui_state.is_changed() && !expansion.is_changed() && !company.is_changed())
+    {
+        return;
+    }
+
+    if let Ok(mut text) = office_q.single_mut() {
+        let count = expansion.purchased.len();
+        let total = OfficeUpgradeKind::ALL.len();
+        text.0 = format!(
+            "Ekspansi & Fasilitas Kantor ({count} / {total} Terpasang)\n\
+             • Reputasi Saat Ini : {:.1}\n\
+             • Pilih aset untuk dipasang langsung ke ruang kantor (otomatis tersimpan di F5 Save):",
+            company.reputation
         );
     }
 }

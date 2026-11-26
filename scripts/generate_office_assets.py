@@ -15,6 +15,7 @@ from glb_lib import (
     make_box,
     make_cylinder,
     make_tapered_box,
+    make_uv_sphere,
     merge_meshes,
     rotate_y_mesh,
 )
@@ -280,6 +281,140 @@ def build_keyboard_mouse(out_path: str) -> None:
     b.build_glb(out_path)
 
 
+# ---------------------------------------------------------------------------
+# Future / Expansion Furniture & Equipment (M8)
+# ---------------------------------------------------------------------------
+
+def build_sofa_basic(out_path: str) -> None:
+    b = GLBBuilder("SofaBasicScene")
+    mat_fabric = b.add_material("SofaTeal", (0.18, 0.42, 0.48, 1.0), roughness=0.82, metallic=0.0)
+    mat_wood = b.add_material("SofaLegsWood", (0.42, 0.28, 0.18, 1.0), roughness=0.65, metallic=0.0)
+
+    # 1.50m wide x 0.74m deep x 0.76m tall, faces +Z
+    legs = merge_meshes([
+        make_cylinder(0.025, 0.018, 0.14, 8, (-0.66, 0.07, 0.28)),
+        make_cylinder(0.025, 0.018, 0.14, 8, (0.66, 0.07, 0.28)),
+        make_cylinder(0.025, 0.018, 0.14, 8, (-0.66, 0.07, -0.28)),
+        make_cylinder(0.025, 0.018, 0.14, 8, (0.66, 0.07, -0.28)),
+    ])
+    cushions = merge_meshes([
+        make_box(1.44, 0.14, 0.68, (0.0, 0.21, 0.0)),      # base frame
+        make_box(0.62, 0.12, 0.60, (-0.32, 0.34, 0.03)),   # left seat cushion
+        make_box(0.62, 0.12, 0.60, (0.32, 0.34, 0.03)),    # right seat cushion
+        make_tapered_box(1.40, 0.16, 1.36, 0.13, 0.42, (0.0, 0.54, -0.24)),  # backrest
+        make_box(0.14, 0.30, 0.68, (-0.68, 0.41, 0.0)),    # left armrest
+        make_box(0.14, 0.30, 0.68, (0.68, 0.41, 0.0)),     # right armrest
+    ])
+    mesh = b.add_mesh("SofaBasicMesh", [(legs, mat_wood), (cushions, mat_fabric)])
+    b.add_node("SofaBasic", mesh=mesh)
+    b.build_glb(out_path)
+
+
+def build_plant_pot(out_path: str) -> None:
+    b = GLBBuilder("PlantPotScene")
+    mat_pot = b.add_material("CeramicPot", (0.88, 0.85, 0.80, 1.0), roughness=0.55, metallic=0.0)
+    mat_soil = b.add_material("PlantSoil", (0.24, 0.17, 0.12, 1.0), roughness=0.95, metallic=0.0)
+    mat_stem = b.add_material("PlantStem", (0.32, 0.44, 0.24, 1.0), roughness=0.80, metallic=0.0)
+    mat_leaf = b.add_material("PlantLeaf", (0.18, 0.56, 0.34, 1.0), roughness=0.68, metallic=0.0)
+
+    pot = make_cylinder(0.14, 0.18, 0.34, 12, (0.0, 0.17, 0.0))
+    soil = make_cylinder(0.16, 0.16, 0.04, 12, (0.0, 0.33, 0.0))
+    stems = merge_meshes([
+        make_cylinder(0.018, 0.014, 0.44, 8, (0.0, 0.54, 0.0)),
+        make_cylinder(0.014, 0.010, 0.34, 8, (-0.06, 0.49, 0.04)),
+        make_cylinder(0.014, 0.010, 0.36, 8, (0.06, 0.51, -0.04)),
+    ])
+    leaves = merge_meshes([
+        make_uv_sphere(0.14, 0.12, 0.14, 7, 10, (0.0, 0.78, 0.0)),
+        make_uv_sphere(0.11, 0.09, 0.11, 6, 9, (-0.11, 0.65, 0.07)),
+        make_uv_sphere(0.11, 0.09, 0.11, 6, 9, (0.11, 0.67, -0.07)),
+        make_uv_sphere(0.10, 0.08, 0.10, 6, 9, (0.06, 0.62, 0.11)),
+    ])
+    mesh = b.add_mesh("PlantPotMesh", [
+        (pot, mat_pot),
+        (soil, mat_soil),
+        (stems, mat_stem),
+        (leaves, mat_leaf),
+    ])
+    b.add_node("PlantPot", mesh=mesh)
+    b.build_glb(out_path)
+
+
+def build_whiteboard(out_path: str) -> None:
+    b = GLBBuilder("WhiteboardScene")
+    mat_frame = b.add_material("WhiteboardSteel", (0.20, 0.22, 0.26, 1.0), roughness=0.45, metallic=0.60)
+    mat_board = b.add_material("WhiteboardSurface", (0.96, 0.97, 0.98, 1.0), roughness=0.25, metallic=0.0)
+    mat_note1 = b.add_material("StickyYellow", (0.98, 0.84, 0.28, 1.0), roughness=0.75, metallic=0.0)
+    mat_note2 = b.add_material("StickyTeal", (0.24, 0.78, 0.64, 1.0), roughness=0.75, metallic=0.0)
+
+    frame = merge_meshes([
+        make_box(0.04, 1.72, 0.04, (-0.58, 0.86, 0.0)),     # left post
+        make_box(0.04, 1.72, 0.04, (0.58, 0.86, 0.0)),      # right post
+        make_box(0.05, 0.04, 0.44, (-0.58, 0.02, 0.0)),     # left foot
+        make_box(0.05, 0.04, 0.44, (0.58, 0.02, 0.0)),      # right foot
+        make_box(1.16, 0.03, 0.08, (0.0, 0.84, 0.03)),      # marker tray
+    ])
+    board = make_box(1.12, 0.82, 0.03, (0.0, 1.28, 0.0))
+    notes_y = merge_meshes([
+        make_box(0.11, 0.11, 0.008, (-0.34, 1.44, 0.02)),
+        make_box(0.11, 0.11, 0.008, (-0.19, 1.44, 0.02)),
+    ])
+    notes_t = merge_meshes([
+        make_box(0.11, 0.11, 0.008, (-0.04, 1.44, 0.02)),
+        make_box(0.28, 0.10, 0.008, (0.24, 1.26, 0.02)),
+    ])
+    mesh = b.add_mesh("WhiteboardMesh", [
+        (frame, mat_frame),
+        (board, mat_board),
+        (notes_y, mat_note1),
+        (notes_t, mat_note2),
+    ])
+    b.add_node("Whiteboard", mesh=mesh)
+    b.build_glb(out_path)
+
+
+def build_server_rack(out_path: str) -> None:
+    b = GLBBuilder("ServerRackScene")
+    mat_cab = b.add_material("RackCabinet", (0.12, 0.13, 0.16, 1.0), roughness=0.45, metallic=0.45)
+    mat_blade = b.add_material("ServerBlade", (0.20, 0.22, 0.26, 1.0), roughness=0.50, metallic=0.35)
+    mat_led_g = b.add_material(
+        "ServerLedGreen",
+        (0.18, 0.90, 0.56, 1.0),
+        roughness=0.20,
+        metallic=0.0,
+        emissive=(0.14, 0.72, 0.45),
+    )
+    mat_led_b = b.add_material(
+        "ServerLedBlue",
+        (0.24, 0.64, 0.98, 1.0),
+        roughness=0.20,
+        metallic=0.0,
+        emissive=(0.18, 0.48, 0.85),
+    )
+
+    cabinet = make_box(0.58, 1.48, 0.58, (0.0, 0.74, 0.0))
+    blades = merge_meshes([
+        make_box(0.50, 0.14, 0.02, (0.0, 0.26 + i * 0.20, 0.29))
+        for i in range(6)
+    ])
+    leds_g = merge_meshes([
+        make_box(0.12, 0.015, 0.012, (-0.14, 0.26 + i * 0.20, 0.305))
+        for i in range(0, 6, 2)
+    ])
+    leds_b = merge_meshes([
+        make_box(0.12, 0.015, 0.012, (-0.14, 0.26 + i * 0.20, 0.305))
+        for i in range(1, 6, 2)
+    ])
+    mesh = b.add_mesh("ServerRackMesh", [
+        (cabinet, mat_cab),
+        (blades, mat_blade),
+        (leds_g, mat_led_g),
+        (leds_b, mat_led_b),
+    ])
+    b.add_node("ServerRack", mesh=mesh)
+    b.build_glb(out_path)
+
+
 def main() -> None:
     targets = [
         ("assets/environment/floor/environment_floor_tile.glb", build_floor_tile),
@@ -289,9 +424,13 @@ def main() -> None:
         ("assets/environment/doors/environment_door_basic.glb", build_door_basic),
         ("assets/furniture/furniture_desk_basic.glb", build_desk_basic),
         ("assets/furniture/furniture_chair_office.glb", build_chair_office),
+        ("assets/furniture/furniture_sofa_basic.glb", build_sofa_basic),
+        ("assets/furniture/furniture_plant_pot.glb", build_plant_pot),
+        ("assets/furniture/furniture_whiteboard.glb", build_whiteboard),
         ("assets/equipment/equipment_monitor_basic.glb", build_monitor_basic),
         ("assets/equipment/equipment_pc_basic.glb", build_pc_basic),
         ("assets/equipment/equipment_keyboard_mouse.glb", build_keyboard_mouse),
+        ("assets/equipment/equipment_server_rack.glb", build_server_rack),
     ]
     for path, fn in targets:
         fn(path)
