@@ -7,6 +7,7 @@ use crate::{
     core::NotifyMessage,
     employee::{EmployeeCommand, EmployeeState, EmployeeWorkState},
     interaction::{InteractTriggered, InteractableKind},
+    life::{LifeCommand, PickupSoundEvent},
     market::MarketCommand,
     office::OfficeUpgradeCommand,
     player::PlayerController,
@@ -131,8 +132,13 @@ fn play_interaction_sfx(
             InteractableKind::Door => {
                 spawn_oneshot(&mut commands, bank.door.clone(), 0.45, settings.muted);
             }
-            InteractableKind::Workstation => {
+            InteractableKind::Workstation
+            | InteractableKind::Employee
+            | InteractableKind::Sofa => {
                 spawn_oneshot(&mut commands, bank.ui_click.clone(), 0.40, settings.muted);
+            }
+            InteractableKind::Courier => {
+                spawn_oneshot(&mut commands, bank.cash.clone(), 0.42, settings.muted);
             }
         }
     }
@@ -146,6 +152,8 @@ fn play_command_sfx(
     mut off_r: MessageReader<OfficeUpgradeCommand>,
     mut mkt_r: MessageReader<MarketCommand>,
     mut save_r: MessageReader<SaveGameCommand>,
+    mut life_r: MessageReader<LifeCommand>,
+    mut pickup_r: MessageReader<PickupSoundEvent>,
     bank: Res<SoundBank>,
     settings: Res<AudioSettings>,
 ) {
@@ -159,6 +167,12 @@ fn play_command_sfx(
         play_cash = true;
     }
     for _ in off_r.read() {
+        play_cash = true;
+    }
+    for _ in life_r.read() {
+        play_cash = true;
+    }
+    for _ in pickup_r.read() {
         play_cash = true;
     }
     for _ in mkt_r.read() {

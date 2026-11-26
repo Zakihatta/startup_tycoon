@@ -22,6 +22,9 @@ impl Plugin for InteractionPlugin {
 pub enum InteractableKind {
     Door,
     Workstation,
+    Courier,
+    Employee,
+    Sofa,
 }
 
 #[derive(Component)]

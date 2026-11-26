@@ -71,21 +71,21 @@ impl OfficeUpgradeKind {
 
     pub fn label(self) -> &'static str {
         match self {
-            OfficeUpgradeKind::OfficePlant => "Tanaman Kantor",
-            OfficeUpgradeKind::Whiteboard => "Whiteboard R&D",
-            OfficeUpgradeKind::LoungeSofa => "Sofa Lounge",
-            OfficeUpgradeKind::ServerRack => "Server Rack",
-            OfficeUpgradeKind::ExtraWorkstation => "Workstation Dev #2",
+            OfficeUpgradeKind::OfficePlant => "Tanaman Hias",
+            OfficeUpgradeKind::Whiteboard => "Papan Ide & Jadwal",
+            OfficeUpgradeKind::LoungeSofa => "Sofa Istirahat",
+            OfficeUpgradeKind::ServerRack => "Perangkat Layanan Cepat",
+            OfficeUpgradeKind::ExtraWorkstation => "Meja Kerja Tim #2",
         }
     }
 
     pub fn effect_summary(self) -> &'static str {
         match self {
-            OfficeUpgradeKind::OfficePlant => "+1.0 Reputasi",
-            OfficeUpgradeKind::Whiteboard => "+1.5 Reputasi, +0.4%/jam R&D",
-            OfficeUpgradeKind::LoungeSofa => "+2.0 Reputasi",
-            OfficeUpgradeKind::ServerRack => "+3.0 Reputasi, +12% Demand",
-            OfficeUpgradeKind::ExtraWorkstation => "+1.5 Reputasi, Slot Dev +1",
+            OfficeUpgradeKind::OfficePlant => "+1.0 Reputasi, suasana makin segar",
+            OfficeUpgradeKind::Whiteboard => "+1.5 Reputasi, kerja lebih terarah",
+            OfficeUpgradeKind::LoungeSofa => "+2.0 Reputasi, bisa istirahat [E]",
+            OfficeUpgradeKind::ServerRack => "+3.0 Reputasi, +12% minat pelanggan",
+            OfficeUpgradeKind::ExtraWorkstation => "+1.5 Reputasi, tambah 1 slot tim",
         }
     }
 
@@ -195,6 +195,7 @@ impl OfficeExpansionState {
 }
 
 #[derive(Message, Clone, Copy, Debug)]
+#[allow(dead_code)]
 pub enum OfficeUpgradeCommand {
     Buy(OfficeUpgradeKind),
 }
@@ -264,6 +265,12 @@ pub fn spawn_upgrade_visual(
                 ),
                 Transform::from_xyz(2.10, 0.0, 1.50)
                     .with_rotation(Quat::from_rotation_y(-FRAC_PI_2)),
+                Interactable {
+                    kind: InteractableKind::Sofa,
+                    prompt: "Istirahat di Sofa (+Energi)".into(),
+                    range: 2.3,
+                    offset: Vec3::new(0.0, 0.5, 0.0),
+                },
             ));
         }
         OfficeUpgradeKind::ServerRack => {

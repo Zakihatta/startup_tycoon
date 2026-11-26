@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{ecs::system::SystemParam, prelude::*};
 use serde::{Deserialize, Serialize};
 use std::{
     fs,
@@ -13,6 +13,9 @@ use crate::{
         spawn_developer_npc, DeveloperNpc, EmployeeProfile, EmployeeState, EmployeeWorkState,
     },
     interaction::Interactable,
+    life::{
+        ensure_employee_stats_sane, CompanyStageState, DeliveryState, PlayerStatus, QuestState,
+    },
     market::MarketState,
     office::{
         rebuild_colliders, spawn_upgrade_visual, OfficeColliders, OfficeDoor,
@@ -57,6 +60,14 @@ pub struct SaveGameData {
     pub market: MarketState,
     #[serde(default)]
     pub office_expansion: OfficeExpansionState,
+    #[serde(default)]
+    pub player_status: PlayerStatus,
+    #[serde(default)]
+    pub stage: CompanyStageState,
+    #[serde(default)]
+    pub deliveries: DeliveryState,
+    #[serde(default)]
+    pub quests: QuestState,
     pub player_pos: [f32; 3],
     pub player_yaw: f32,
     pub door_open: bool,
@@ -120,19 +131,33 @@ fn handle_save_hotkeys(
     }
 }
 
+#[derive(SystemParam)]
+struct SaveCoreParams<'w> {
+    clock: ResMut<'w, GameClock>,
+    company: ResMut<'w, CompanyState>,
+    finance: ResMut<'w, FinanceState>,
+    product: ResMut<'w, ProductState>,
+    employees: ResMut<'w, EmployeeState>,
+    market: ResMut<'w, MarketState>,
+    expansion: ResMut<'w, OfficeExpansionState>,
+    colliders: ResMut<'w, OfficeColliders>,
+}
+
+#[derive(SystemParam)]
+struct SaveLifeParams<'w> {
+    stage: ResMut<'w, CompanyStageState>,
+    status: ResMut<'w, PlayerStatus>,
+    delivery: ResMut<'w, DeliveryState>,
+    quests: ResMut<'w, QuestState>,
+}
+
 #[allow(clippy::too_many_arguments)]
 fn process_save_commands(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut reader: MessageReader<SaveGameCommand>,
-    mut clock: ResMut<GameClock>,
-    mut company: ResMut<CompanyState>,
-    mut finance: ResMut<FinanceState>,
-    mut product: ResMut<ProductState>,
-    mut employees: ResMut<EmployeeState>,
-    mut market: ResMut<MarketState>,
-    mut expansion: ResMut<OfficeExpansionState>,
-    mut colliders: ResMut<OfficeColliders>,
+    mut core: SaveCoreParams,
+    mut life: SaveLifeParams,
     mut player_q: Query<(&mut Transform, &mut PlayerController)>,
     mut door_q: Query<(&mut OfficeDoor, &mut Interactable)>,
     npc_q: Query<Entity, (With<DeveloperNpc>, Without<PurchasedOfficeProp>)>,
@@ -153,16 +178,20 @@ fn process_save_commands(
                 let payload = SaveGameData {
                     version: SAVE_SCHEMA_VERSION,
                     clock: SavedClock {
-                        day: clock.day,
-                        hour: clock.hour,
-                        minute: clock.minute,
+                        day: core.clock.day,
+                        hour: core.clock.hour,
+                        minute: core.clock.minute,
                     },
-                    company: company.clone(),
-                    finance: finance.clone(),
-                    product: product.clone(),
-                    employees: employees.roster.clone(),
-                    market: market.clone(),
-                    office_expansion: expansion.clone(),
+                    company: core.company.clone(),
+                    finance: core.finance.clone(),
+                    product: core.product.clone(),
+                    employees: core.employees.roster.clone(),
+                    market: core.market.clone(),
+                    office_expansion: core.expansion.clone(),
+                    player_status: life.status.clone(),
+                    stage: life.stage.clone(),
+                    deliveries: life.delivery.clone(),
+                    quests: life.quests.clone(),
                     player_pos,
                     player_yaw,
                     door_open,
@@ -172,8 +201,8 @@ fn process_save_commands(
                     Ok(()) => {
                         notify.write(NotifyMessage::info(format!(
                             "Game disimpan (Hari {} · {})",
-                            clock.day,
-                            clock.formatted_time()
+                            core.clock.day,
+                            core.clock.formatted_time()
                         )));
                     }
                     Err(err) => {
@@ -183,26 +212,36 @@ fn process_save_commands(
             }
             SaveGameCommand::Load => match SaveGameData::load_from_path(&save_path) {
                 Ok(data) => {
-                    clock.restore(data.clock.day, data.clock.hour, data.clock.minute);
-                    *company = data.company;
-                    *finance = data.finance;
-                    *product = data.product;
-                    *market = data.market;
-                    *expansion = data.office_expansion;
+                    core.clock.restore(data.clock.day, data.clock.hour, data.clock.minute);
+                    *core.company = data.company;
+                    *core.finance = data.finance;
+                    *core.product = data.product;
+                    *core.market = data.market;
+                    *core.expansion = data.office_expansion;
+                    *life.status = data.player_status;
+                    *life.stage = data.stage;
+                    *life.delivery = data.deliveries;
+                    *life.quests = data.quests;
 
-                    employees.max_employees =
-                        if expansion.is_purchased(OfficeUpgradeKind::ExtraWorkstation) {
+                    core.employees.max_employees =
+                        if core.expansion.is_purchased(OfficeUpgradeKind::ExtraWorkstation)
+                            || life.stage.current != crate::life::CompanyStage::Founder
+                        {
                             2
                         } else {
                             1
                         };
 
-                    if data.employees.len() <= employees.max_employees {
-                        employees.roster = data.employees;
+                    if data.employees.len() <= core.employees.max_employees {
+                        core.employees.roster = data.employees;
                     } else {
-                        employees.roster = data.employees[..employees.max_employees].to_vec();
+                        core.employees.roster =
+                            data.employees[..core.employees.max_employees].to_vec();
                     }
-                    company.team_size = 1 + employees.roster.len() as u32;
+                    for emp in &mut core.employees.roster {
+                        ensure_employee_stats_sane(emp);
+                    }
+                    core.company.team_size = 1 + core.employees.roster.len() as u32;
 
                     if let Ok((mut tf, mut ctrl)) = player_q.single_mut() {
                         tf.translation = Vec3::from_array(data.player_pos);
@@ -224,15 +263,15 @@ fn process_save_commands(
                     for prop_entity in &prop_q {
                         commands.entity(prop_entity).despawn();
                     }
-                    for &kind in &expansion.purchased {
+                    for &kind in &core.expansion.purchased {
                         spawn_upgrade_visual(&mut commands, &asset_server, kind);
                     }
-                    rebuild_colliders(&mut colliders, &expansion);
+                    rebuild_colliders(&mut core.colliders, &core.expansion);
 
                     for npc_entity in &npc_q {
                         commands.entity(npc_entity).despawn();
                     }
-                    for emp in &employees.roster {
+                    for emp in &core.employees.roster {
                         let seated = emp.state != EmployeeWorkState::WalkingToDesk;
                         spawn_developer_npc(
                             &mut commands,
@@ -245,9 +284,9 @@ fn process_save_commands(
 
                     notify.write(NotifyMessage::info(format!(
                         "Save dimuat: Hari {} · {} (${})",
-                        clock.day,
-                        clock.formatted_time(),
-                        finance.cash_balance
+                        core.clock.day,
+                        core.clock.formatted_time(),
+                        core.finance.cash_balance
                     )));
                 }
                 Err(err) => {
@@ -261,6 +300,7 @@ fn process_save_commands(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::employee::EmployeeFocus;
 
     fn sample_save() -> SaveGameData {
         let mut comp = CompanyState::default();
@@ -280,15 +320,22 @@ mod tests {
             employees: vec![EmployeeProfile {
                 id: 1,
                 name: "Raka Pratama".to_string(),
-                role: "Developer".to_string(),
+                role: "Pembuat Produk".to_string(),
                 skill: 1.2,
                 daily_salary: 160,
                 portrait_path: "characters/employees/portraits/developer_01.png".to_string(),
                 state: EmployeeWorkState::Working,
                 desk_index: 0,
+                energy: 90.0,
+                mood: 85.0,
+                focus: EmployeeFocus::Balanced,
             }],
             market: MarketState::default(),
             office_expansion: OfficeExpansionState::default(),
+            player_status: PlayerStatus::default(),
+            stage: CompanyStageState::default(),
+            deliveries: DeliveryState::default(),
+            quests: QuestState::default(),
             player_pos: [0.5, 0.0, 1.0],
             player_yaw: 0.4,
             door_open: true,

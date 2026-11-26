@@ -5,6 +5,7 @@ use crate::{
     company::CompanyState,
     core::{DayPassedMessage, GameClock, HourPassedMessage, NotifyMessage},
     economy::{FinanceState, TransactionKind},
+    life::PlayerStatus,
 };
 
 pub struct ProductPlugin;
@@ -38,10 +39,10 @@ pub enum ProductPhase {
 impl ProductPhase {
     pub fn label(self) -> &'static str {
         match self {
-            ProductPhase::Development => "Development",
-            ProductPhase::Testing => "Testing / QA",
-            ProductPhase::ReadyToLaunch => "Siap Rilis",
-            ProductPhase::Launched => "Launched",
+            ProductPhase::Development => "Proses Pembuatan",
+            ProductPhase::Testing => "Cek Kualitas",
+            ProductPhase::ReadyToLaunch => "Siap Diluncurkan",
+            ProductPhase::Launched => "Sudah Dipasarkan",
         }
     }
 }
@@ -102,13 +103,18 @@ impl ProductState {
         Ok(())
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn advance_hour(&mut self, founder_active: bool) {
+        self.advance_hour_with_efficiency(founder_active, 1.0);
+    }
+
+    pub fn advance_hour_with_efficiency(&mut self, founder_active: bool, founder_mult: f32) {
         let Some(prod) = &mut self.active else {
             return;
         };
 
-        // Base founder output + employee bonus (M5 hooks into total_productivity_bonus)
-        let founder_rate = if founder_active { 2.2 } else { 0.0 };
+        // Base founder output scaled by energy/hunger/level + employee bonus
+        let founder_rate = if founder_active { 2.2 * founder_mult } else { 0.0 };
         let rate = founder_rate + self.total_productivity_bonus;
 
         match prod.phase {
@@ -184,15 +190,17 @@ fn handle_product_commands(
 
 fn advance_product_hourly(
     mut hour_reader: MessageReader<HourPassedMessage>,
+    status: Res<PlayerStatus>,
     mut product: ResMut<ProductState>,
     mut notify: MessageWriter<NotifyMessage>,
 ) {
+    let mult = status.work_efficiency();
     for ev in hour_reader.read() {
         // Work hours: 08:00 - 21:00
         let working = ev.hour >= 8 && ev.hour <= 21;
         if working {
             let prev_phase = product.active.as_ref().map(|p| p.phase);
-            product.advance_hour(true);
+            product.advance_hour_with_efficiency(true, mult);
             let new_phase = product.active.as_ref().map(|p| p.phase);
             if prev_phase != new_phase
                 && let Some(p) = &product.active
@@ -200,13 +208,13 @@ fn advance_product_hourly(
                 match p.phase {
                     ProductPhase::Testing => {
                         notify.write(NotifyMessage::info(format!(
-                            "'{}' masuk tahap Testing / QA!",
+                            "'{}' masuk tahap Cek Kualitas!",
                             p.name
                         )));
                     }
                     ProductPhase::ReadyToLaunch => {
                         notify.write(NotifyMessage::info(format!(
-                            "'{}' SIAP RILIS! Buka tab Product.",
+                            "'{}' SIAP DILUNCURKAN! Buka Kelola Usaha -> Produk.",
                             p.name
                         )));
                     }

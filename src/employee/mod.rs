@@ -7,8 +7,9 @@ use std::{
 
 use crate::{
     company::CompanyState,
-    core::{DayPassedMessage, GameClock, NotifyMessage},
+    core::{DayPassedMessage, GameClock, HourPassedMessage, NotifyMessage},
     economy::{FinanceState, TransactionKind},
+    interaction::{Interactable, InteractableKind},
     office::OfficeExpansionState,
     product::{ProductPhase, ProductState},
 };
@@ -26,6 +27,7 @@ impl Plugin for EmployeePlugin {
                 Update,
                 (
                     handle_employee_commands,
+                    tick_employee_needs_hourly,
                     move_developer_npcs,
                     setup_developer_animations,
                     sync_developer_animations,
@@ -48,16 +50,47 @@ impl EmployeeWorkState {
     pub fn label(self) -> &'static str {
         match self {
             EmployeeWorkState::WalkingToDesk => "Berjalan ke Meja",
-            EmployeeWorkState::Working => "Sedang Coding",
-            EmployeeWorkState::SittingIdle => "Duduk Santai",
+            EmployeeWorkState::Working => "Sedang Bekerja",
+            EmployeeWorkState::SittingIdle => "Istirahat Santai",
         }
     }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum EmployeeFocus {
+    #[default]
+    Balanced,
+    FastOutput,
+    ExtraCareful,
+}
+
+impl EmployeeFocus {
+    pub fn label(self) -> &'static str {
+        match self {
+            EmployeeFocus::Balanced => "Seimbang",
+            EmployeeFocus::FastOutput => "Cepat Selesai",
+            EmployeeFocus::ExtraCareful => "Teliti & Rapi",
+        }
+    }
+
+    pub fn next(self) -> Self {
+        match self {
+            EmployeeFocus::Balanced => EmployeeFocus::FastOutput,
+            EmployeeFocus::FastOutput => EmployeeFocus::ExtraCareful,
+            EmployeeFocus::ExtraCareful => EmployeeFocus::Balanced,
+        }
+    }
+}
+
+fn default_employee_stat() -> f32 {
+    90.0
 }
 
 #[derive(Clone, Debug)]
 pub struct HireCandidate {
     pub id: u32,
     pub name: String,
+    pub role_label: &'static str,
     pub skill: f32,
     pub daily_salary: i64,
     pub hiring_fee: i64,
@@ -75,6 +108,12 @@ pub struct EmployeeProfile {
     pub state: EmployeeWorkState,
     #[serde(default)]
     pub desk_index: usize,
+    #[serde(default = "default_employee_stat")]
+    pub energy: f32,
+    #[serde(default = "default_employee_stat")]
+    pub mood: f32,
+    #[serde(default)]
+    pub focus: EmployeeFocus,
 }
 
 #[derive(Resource, Debug)]
@@ -91,6 +130,7 @@ impl Default for EmployeeState {
                 HireCandidate {
                     id: 1,
                     name: "Raka Pratama".to_string(),
+                    role_label: "Pembuat Produk",
                     skill: 1.2,
                     daily_salary: 160,
                     hiring_fee: 600,
@@ -99,6 +139,7 @@ impl Default for EmployeeState {
                 HireCandidate {
                     id: 2,
                     name: "Sinta Wijaya".to_string(),
+                    role_label: "Perancang & Pembuat",
                     skill: 1.8,
                     daily_salary: 240,
                     hiring_fee: 1_000,
@@ -136,7 +177,7 @@ impl EmployeeState {
 
         finance.record_transaction(
             day,
-            format!("Rekrut Dev: {}", cand.name),
+            format!("Rekrut Tim: {}", cand.name),
             -cand.hiring_fee,
             TransactionKind::Salary,
         );
@@ -145,12 +186,15 @@ impl EmployeeState {
         let profile = EmployeeProfile {
             id: cand.id,
             name: cand.name,
-            role: "Developer".to_string(),
+            role: cand.role_label.to_string(),
             skill: cand.skill,
             daily_salary: cand.daily_salary,
             portrait_path: cand.portrait_path.to_string(),
             state: EmployeeWorkState::WalkingToDesk,
             desk_index,
+            energy: 92.0,
+            mood: 86.0,
+            focus: EmployeeFocus::Balanced,
         };
         self.roster.push(profile.clone());
         company.team_size = 1 + self.roster.len() as u32;
@@ -161,7 +205,15 @@ impl EmployeeState {
         self.roster
             .iter()
             .filter(|e| e.state == EmployeeWorkState::Working)
-            .map(|e| e.skill * 1.8)
+            .map(|e| {
+                let fatigue = if e.energy < 20.0 { 0.55 } else { 1.0 };
+                let focus_mult = match e.focus {
+                    EmployeeFocus::Balanced => 1.0,
+                    EmployeeFocus::FastOutput => 1.18,
+                    EmployeeFocus::ExtraCareful => 0.92,
+                };
+                e.skill * 1.8 * fatigue * focus_mult
+            })
             .sum()
     }
 }
@@ -169,6 +221,8 @@ impl EmployeeState {
 #[derive(Message, Clone, Copy, Debug)]
 pub enum EmployeeCommand {
     HireCandidate(usize),
+    CheerUp(u32),
+    ToggleFocus(u32),
 }
 
 #[derive(Component)]
@@ -263,6 +317,12 @@ pub fn spawn_developer_npc(
             facing_yaw: seat_yaw,
             active_anim: None,
         },
+        Interactable {
+            kind: InteractableKind::Employee,
+            prompt: "Sapa / Cek Karyawan".into(),
+            range: 2.5,
+            offset: Vec3::new(0.0, 1.1, 0.0),
+        },
         WorldAssetRoot(asset_server.load(GltfAssetLabel::Scene(0).from_asset(DEVELOPER_ASSET))),
     ));
 }
@@ -283,7 +343,7 @@ fn handle_employee_commands(
                 match employees.hire_candidate(*idx, clock.day, &mut finance, &mut company) {
                     Ok(profile) => {
                         notify.write(NotifyMessage::info(format!(
-                            "Developer '{}' bergabung ke tim!",
+                            "{} resmi bergabung ke tim!",
                             profile.name
                         )));
                         spawn_developer_npc(
@@ -298,6 +358,47 @@ fn handle_employee_commands(
                         notify.write(NotifyMessage::warn(err));
                     }
                 }
+            }
+            EmployeeCommand::CheerUp(emp_id) => {
+                if let Some(emp) = employees.roster.iter_mut().find(|e| e.id == *emp_id) {
+                    emp.mood = (emp.mood + 15.0).clamp(0.0, 100.0);
+                    emp.energy = (emp.energy + 8.0).clamp(0.0, 100.0);
+                    notify.write(NotifyMessage::info(format!(
+                        "Memberi semangat ke {}! Semangat kerja meningkat.",
+                        emp.name
+                    )));
+                }
+            }
+            EmployeeCommand::ToggleFocus(emp_id) => {
+                if let Some(emp) = employees.roster.iter_mut().find(|e| e.id == *emp_id) {
+                    emp.focus = emp.focus.next();
+                    notify.write(NotifyMessage::info(format!(
+                        "Fokus kerja {} diubah ke: {}.",
+                        emp.name,
+                        emp.focus.label()
+                    )));
+                }
+            }
+        }
+    }
+}
+
+fn tick_employee_needs_hourly(
+    mut hour_reader: MessageReader<HourPassedMessage>,
+    mut employees: ResMut<EmployeeState>,
+) {
+    for ev in hour_reader.read() {
+        let is_night = ev.hour < 8 || ev.hour > 21;
+        for emp in &mut employees.roster {
+            if is_night {
+                emp.energy = (emp.energy + 12.0).clamp(0.0, 100.0);
+                emp.mood = (emp.mood + 4.0).clamp(0.0, 100.0);
+            } else if emp.state == EmployeeWorkState::Working {
+                emp.energy = (emp.energy - 3.2).max(10.0);
+                emp.mood = (emp.mood - 1.2).max(20.0);
+            } else {
+                emp.energy = (emp.energy + 6.5).clamp(0.0, 100.0);
+                emp.mood = (emp.mood + 3.0).clamp(0.0, 100.0);
             }
         }
     }

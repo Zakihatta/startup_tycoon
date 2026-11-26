@@ -7,6 +7,7 @@ mod core;
 mod economy;
 mod employee;
 mod interaction;
+mod life;
 mod market;
 mod office;
 mod player;
@@ -20,6 +21,7 @@ use core::{NotificationPlugin, TimePlugin};
 use economy::EconomyPlugin;
 use employee::EmployeePlugin;
 use interaction::InteractionPlugin;
+use life::LifePlugin;
 use market::MarketPlugin;
 use office::OfficePlugin;
 use player::PlayerPlugin;
@@ -87,6 +89,7 @@ fn main() {
             OfficePlugin,
             PlayerPlugin,
             InteractionPlugin,
+            LifePlugin,
             SaveSystemPlugin,
             GameUiPlugin,
         ))

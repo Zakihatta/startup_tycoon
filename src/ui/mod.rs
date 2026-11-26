@@ -6,6 +6,8 @@ use bevy::{
     window::{CursorGrabMode, CursorOptions},
 };
 
+mod life_panels;
+
 use crate::{
     audio::AudioSettings,
     company::CompanyState,
@@ -13,8 +15,9 @@ use crate::{
     economy::FinanceState,
     employee::{EmployeeCommand, EmployeeState},
     interaction::{ActiveInteractionTarget, InteractTriggered, InteractableKind},
+    life::{DeliveryState, LifeCommand},
     market::{MarketCommand, MarketState},
-    office::{OfficeExpansionState, OfficeUpgradeCommand, OfficeUpgradeKind},
+    office::{OfficeExpansionState, OfficeUpgradeKind},
     player::{CameraMode, PlayerController},
     product::{ProductCommand, ProductPhase, ProductState, PRODUCT_DAILY_DEV_COST, PRODUCT_START_COST},
     save_system::SaveGameCommand,
@@ -29,10 +32,16 @@ impl Plugin for GameUiPlugin {
             .add_systems(
                 Update,
                 (
-                    (handle_workstation_close, handle_workstation_interact).chain(),
+                    (
+                        handle_workstation_close,
+                        handle_workstation_interact,
+                        life_panels::handle_employee_npc_interact,
+                    )
+                        .chain(),
                     apply_ui_font,
                     update_hud_mode,
                     update_hud_status,
+                    life_panels::update_player_hud_and_quests,
                     update_mute_button,
                     update_speed_button_styles,
                     update_tab_button_styles,
@@ -40,13 +49,21 @@ impl Plugin for GameUiPlugin {
                     update_office_button_styles,
                     update_action_button_styles,
                     update_interaction_prompt,
+                ),
+            )
+            .add_systems(
+                Update,
+                (
                     sync_workstation_modal_visibility,
+                    life_panels::sync_extra_modals_and_content,
                     update_overview_tab,
                     update_product_tab,
                     update_employee_tab,
                     update_market_tab,
                     update_office_tab,
                     update_finance_tab,
+                    life_panels::update_founder_tab,
+                    life_panels::update_order_tab,
                     update_toast_notifications,
                 ),
             );
@@ -60,14 +77,49 @@ pub enum WorkstationTab {
     Product,
     Employee,
     Market,
+    Order,
     Office,
     Finance,
+    Founder,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum ActiveModal {
+    #[default]
+    None,
+    Workstation,
+    MainMenu,
+    NpcDialog(u32),
 }
 
 #[derive(Resource, Default)]
 pub struct WorkstationUiState {
     pub is_open: bool,
     pub active_tab: WorkstationTab,
+    pub modal: ActiveModal,
+}
+
+impl WorkstationUiState {
+    pub fn open_workstation(&mut self, tab: WorkstationTab) {
+        self.is_open = true;
+        self.active_tab = tab;
+        self.modal = ActiveModal::Workstation;
+    }
+
+    pub fn open_main_menu(&mut self) {
+        self.is_open = true;
+        self.modal = ActiveModal::MainMenu;
+    }
+
+    pub fn open_npc_dialog(&mut self, employee_id: u32) {
+        self.is_open = true;
+        self.modal = ActiveModal::NpcDialog(employee_id);
+    }
+
+    pub fn close_all(&mut self) {
+        self.is_open = false;
+        self.modal = ActiveModal::None;
+    }
 }
 
 /// Marker for HUD buttons so clicking them doesn't lock the mouse cursor.
@@ -184,10 +236,8 @@ fn format_money(amount: i64) -> String {
 
 fn hud_hint_string(mode_label: &str) -> String {
     format!(
-        "Startup Tycoon - Mode: {mode_label}\n\
-         [Klik Kanan] Kunci Mouse | [ESC] Lepas Mouse\n\
-         [WASD] Jalan | [Shift] Lari | [V] 1st/3rd Person | [E] Interaksi\n\
-         [0/P] Pause | [1] 1x | [2] 2x | [M] Mute | [F5] Save | [F9] Load"
+        "Kamera: {mode_label} | [Klik Kanan] Kunci Kamera | [ESC] Lepas\n\
+         [WASD] Jalan | [Shift] Lari | [E] Interaksi | [V] 1st/3rd | [M] Audio | [F5/F9] Save/Load"
     )
 }
 
@@ -202,21 +252,24 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
     let icon_employee: Handle<Image> = asset_server.load("ui/icons/ui_icon_employee.png");
     let icon_settings: Handle<Image> = asset_server.load("ui/icons/ui_icon_settings.png");
 
-    // Top-left controls & mode overlay
+    // Top-left Player Status Card + Active Quests + Bottom Quick Action Bar
+    life_panels::spawn_player_hud_and_quests(&mut commands);
+
+    // Bottom-left compact controls hint
     commands.spawn((
         HudHintText,
         Text::new(hud_hint_string("3rd Person")),
         TextFont {
-            font_size: FontSize::Px(14.0),
+            font_size: FontSize::Px(12.0),
             ..default()
         },
-        TextColor(Color::srgba(1.0, 1.0, 1.0, 0.94)),
+        TextColor(Color::srgba(0.92, 0.95, 1.0, 0.90)),
         BackgroundColor(Color::srgba(0.08, 0.10, 0.14, 0.72)),
         Node {
             position_type: PositionType::Absolute,
-            top: px(14.0),
+            bottom: px(14.0),
             left: px(14.0),
-            padding: UiRect::all(px(10.0)),
+            padding: UiRect::all(px(8.0)),
             ..default()
         },
     ));
@@ -353,6 +406,36 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                         TextColor(Color::WHITE),
                     ));
                 });
+
+                btns.spawn((
+                    HudInteractive,
+                    Button,
+                    Hovered::default(),
+                    Node {
+                        padding: UiRect::axes(px(8.0), px(4.0)),
+                        ..default()
+                    },
+                    BackgroundColor(Color::srgb(0.24, 0.29, 0.38)),
+                ))
+                .observe(
+                    |_: On<Activate>,
+                     mut ui_state: ResMut<WorkstationUiState>,
+                     mut cursor_options: Single<&mut CursorOptions>| {
+                        ui_state.open_main_menu();
+                        cursor_options.visible = true;
+                        cursor_options.grab_mode = CursorGrabMode::None;
+                    },
+                )
+                .with_children(|b| {
+                    b.spawn((
+                        Text::new("Menu"),
+                        TextFont {
+                            font_size: FontSize::Px(13.0),
+                            ..default()
+                        },
+                        TextColor(Color::WHITE),
+                    ));
+                });
             });
         });
 
@@ -437,7 +520,7 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
             backdrop
                 .spawn((
                     Node {
-                        width: px(720.0),
+                        width: px(780.0),
                         flex_direction: FlexDirection::Column,
                         padding: UiRect::all(px(22.0)),
                         row_gap: px(14.0),
@@ -473,61 +556,64 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                                             ..default()
                                         },
                                     ));
-                                    title_row.spawn((
-                                        Text::new("StartupOS v0.3 - Manajemen Perusahaan"),
-                                        TextFont {
-                                            font_size: FontSize::Px(21.0),
-                                            ..default()
-                                        },
-                                        TextColor(Color::srgb(0.24, 0.84, 0.62)),
-                                    ));
-                                });
-
-                            header
-                                .spawn((
-                                    CloseWorkstationButton,
-                                    Button,
-                                    Hovered::default(),
-                                    Node {
-                                        padding: UiRect::axes(px(12.0), px(6.0)),
-                                        ..default()
-                                    },
-                                    BackgroundColor(Color::srgb(0.24, 0.28, 0.36)),
-                                ))
-                                .observe(
-                                    |_: On<Activate>,
-                                     mut ui_state: ResMut<WorkstationUiState>| {
-                                        ui_state.is_open = false;
-                                    },
-                                )
-                                .with_children(|btn| {
-                                    btn.spawn((
-                                        Text::new("Tutup [ESC / E]"),
-                                        TextFont {
-                                            font_size: FontSize::Px(14.0),
-                                            ..default()
-                                        },
-                                        TextColor(Color::WHITE),
-                                    ));
-                                });
-                        });
-
-                    // Navigation tabs
-                    panel
-                        .spawn(Node {
-                            flex_direction: FlexDirection::Row,
-                            column_gap: px(8.0),
+                    title_row.spawn((
+                        Text::new("Kelola Usaha & Startup - Startup Tycoon"),
+                        TextFont {
+                            font_size: FontSize::Px(20.0),
                             ..default()
-                        })
-                        .with_children(|tabs| {
-                            for (tab, label, icon) in [
-                                (WorkstationTab::Overview, "Overview", icon_company.clone()),
-                                (WorkstationTab::Product, "Product", icon_product),
-                                (WorkstationTab::Employee, "Employee", icon_employee),
-                                (WorkstationTab::Market, "Market", icon_settings.clone()),
-                                (WorkstationTab::Office, "Office", icon_settings),
-                                (WorkstationTab::Finance, "Finance", icon_money),
-                            ] {
+                        },
+                        TextColor(Color::srgb(0.24, 0.84, 0.62)),
+                    ));
+                });
+
+                header
+                    .spawn((
+                        CloseWorkstationButton,
+                        Button,
+                        Hovered::default(),
+                        Node {
+                            padding: UiRect::axes(px(12.0), px(6.0)),
+                            ..default()
+                        },
+                        BackgroundColor(Color::srgb(0.24, 0.28, 0.36)),
+                    ))
+                    .observe(
+                        |_: On<Activate>, mut ui_state: ResMut<WorkstationUiState>| {
+                            ui_state.close_all();
+                        },
+                    )
+                    .with_children(|btn| {
+                        btn.spawn((
+                            Text::new("Tutup [ESC / E]"),
+                            TextFont {
+                                font_size: FontSize::Px(14.0),
+                                ..default()
+                            },
+                            TextColor(Color::WHITE),
+                        ));
+                    });
+            });
+
+            // Navigation tabs
+            panel
+                .spawn(Node {
+                    flex_direction: FlexDirection::Row,
+                    flex_wrap: FlexWrap::Wrap,
+                    column_gap: px(6.0),
+                    row_gap: px(6.0),
+                    ..default()
+                })
+                .with_children(|tabs| {
+                    for (tab, label, icon) in [
+                        (WorkstationTab::Founder, "Status & Misi", icon_company.clone()),
+                        (WorkstationTab::Overview, "Ringkasan", icon_company.clone()),
+                        (WorkstationTab::Product, "Produk", icon_product),
+                        (WorkstationTab::Employee, "Tim", icon_employee),
+                        (WorkstationTab::Market, "Pasar", icon_settings.clone()),
+                        (WorkstationTab::Order, "Order / Kurir", icon_money.clone()),
+                        (WorkstationTab::Office, "Kantor", icon_settings),
+                        (WorkstationTab::Finance, "Keuangan", icon_money),
+                    ] {
                                 tabs.spawn((
                                     TabButton(tab),
                                     Button,
@@ -739,11 +825,13 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                                         ..default()
                                     },
                                 ))
+                    // Modal width slightly wider for 8 tabs
+                    // Product Starter Presets in everyday non-IT language
                                 .with_children(|starters| {
                                     for (name, cat) in [
-                                        ("TaskFlow SaaS", "Productivity"),
-                                        ("CloudNotes App", "Collaboration"),
-                                        ("BugTracker Pro", "DevTools"),
+                                        ("Toko Kue & Katering", "Kuliner & Belanja"),
+                                        ("Catatan Keuangan", "Keuangan Harian"),
+                                        ("Kelas Belajar Online", "Edukasi & Kursus"),
                                     ] {
                                         let name_owned = name.to_string();
                                         let cat_owned = cat.to_string();
@@ -875,10 +963,11 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                                     },
                                 ))
                                 .with_children(|cands| {
-                                    for (idx, name, skill, salary, fee, portrait) in [
+                                    for (idx, name, role_txt, skill, salary, fee, portrait) in [
                                         (
                                             0usize,
                                             "Raka Pratama",
+                                            "Pembuat Produk",
                                             1.2f32,
                                             160i64,
                                             600i64,
@@ -887,6 +976,7 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                                         (
                                             1usize,
                                             "Sinta Wijaya",
+                                            "Perancang & Pembuat",
                                             1.8f32,
                                             240i64,
                                             1_000i64,
@@ -924,7 +1014,7 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                                                     ));
                                                     top.spawn((
                                                         Text::new(format!(
-                                                            "{name}\nRole: Developer\nSkill: {skill:.1}x | Gaji: {}/hr",
+                                                            "{name}\nPeran: {role_txt}\nKecepatan: {skill:.1}x | Gaji: {}/hr",
                                                             format_money(salary)
                                                         )),
                                                         TextFont {
@@ -1090,8 +1180,8 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                                         ))
                                         .observe(
                                             move |_: On<Activate>,
-                                                  mut writer: MessageWriter<OfficeUpgradeCommand>| {
-                                                writer.write(OfficeUpgradeCommand::Buy(kind));
+                                                  mut writer: MessageWriter<LifeCommand>| {
+                                                writer.write(LifeCommand::OrderEquipment(kind));
                                             },
                                         )
                                         .with_children(|b| {
@@ -1132,9 +1222,11 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                         BackgroundColor(Color::srgb(0.14, 0.18, 0.25)),
                     ));
 
+                    life_panels::spawn_founder_and_order_tabs(panel);
+
                     panel.spawn((
                         Text::new(
-                            "Tips: Bangun produk di tab Product, rekrut Developer di tab Employee, rilis, lalu atur harga & pantau omzet di tab Market.",
+                            "Tip: Jaga Energi & Lapar Founder, pesan makan/barang lewat Order (diantar kurir ke pintu), rekrut tim, lalu naik ke Stage 2!",
                         ),
                         TextFont {
                             font_size: FontSize::Px(13.0),
@@ -1145,6 +1237,8 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                 });
         });
 
+    life_panels::spawn_main_menu_and_npc_modals(&mut commands);
+
     // Bottom-right Notification Toast Feed
     commands
         .spawn((
@@ -1152,7 +1246,7 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
             Visibility::Hidden,
             Node {
                 position_type: PositionType::Absolute,
-                bottom: px(16.0),
+                bottom: px(68.0),
                 right: px(16.0),
                 max_width: px(380.0),
                 padding: UiRect::axes(px(14.0), px(10.0)),
@@ -1182,7 +1276,7 @@ fn handle_workstation_interact(
 ) {
     for ev in reader.read() {
         if ev.kind == InteractableKind::Workstation {
-            ui_state.is_open = true;
+            ui_state.open_workstation(WorkstationTab::Overview);
             cursor_options.visible = true;
             cursor_options.grab_mode = CursorGrabMode::None;
         }
@@ -1202,7 +1296,7 @@ fn handle_workstation_close(
     }
 
     if keys.just_pressed(KeyCode::Escape) || keys.just_pressed(KeyCode::KeyE) {
-        ui_state.is_open = false;
+        ui_state.close_all();
         return;
     }
 
@@ -1344,11 +1438,14 @@ fn update_price_button_styles(
 
 fn update_office_button_styles(
     expansion: Res<OfficeExpansionState>,
+    delivery: Res<DeliveryState>,
     mut btn_q: Query<(&OfficeUpgradeButton, &Hovered, Option<&Pressed>, &mut BackgroundColor)>,
 ) {
     for (btn, hovered, pressed, mut bg) in &mut btn_q {
         if expansion.is_purchased(btn.0) {
             *bg = BackgroundColor(Color::srgb(0.14, 0.42, 0.32));
+        } else if delivery.has_pending_equipment(btn.0) {
+            *bg = BackgroundColor(Color::srgb(0.55, 0.42, 0.16));
         } else if pressed.is_some() {
             *bg = BackgroundColor(Color::srgb(0.12, 0.44, 0.33));
         } else if hovered.get() {
@@ -1407,7 +1504,7 @@ fn sync_workstation_modal_visibility(
         return;
     }
     if let Ok(mut modal_vis) = modal_q.single_mut() {
-        *modal_vis = if ui_state.is_open {
+        *modal_vis = if ui_state.modal == ActiveModal::Workstation {
             Visibility::Visible
         } else {
             Visibility::Hidden
@@ -1455,28 +1552,28 @@ fn update_overview_tab(
     }
 
     let product_summary = match &product.active {
-        None => "Belum ada proyek (buka tab Product)".to_string(),
+        None => "Belum ada produk (buka tab Produk)".to_string(),
         Some(p) => format!("{} ({} · {:.0}%)", p.name, p.phase.label(), p.progress),
     };
 
     if let Ok(mut text) = overview_q.single_mut() {
         let warning = if finance.is_low_cash() {
-            "\n[!] PERINGATAN: Kas perusahaan menipis di bawah $5,000!"
+            "\n[!] PERINGATAN: Uang kas usaha menipis di bawah $5,000!"
         } else {
             ""
         };
         text.0 = format!(
-            "Ringkasan Perusahaan\n\
-             • Nama           : {}\n\
-             • Industri       : {}\n\
-             • Kantor         : {}\n\
+            "Ringkasan Usaha\n\
+             • Nama Usaha     : {}\n\
+             • Bidang         : {}\n\
+             • Tempat Kerja   : {}\n\
              • Hari & Waktu   : Hari {} · {} ({})\n\
              • Kas Saat Ini   : {}\n\
-             • Laba/Rugi      : {}\n\
-             • Reputasi       : {:.1}\n\
+             • Untung / Rugi  : {}\n\
+             • Nama Baik      : {:.1}\n\
              • Produk Aktif   : {}\n\
-             • Pengguna Aktif : {} user (Omzet: {}/hari)\n\
-             • Tim            : {} orang{}",
+             • Pelanggan      : {} orang (Pemasukan: {}/hari)\n\
+             • Anggota Tim    : {} orang{}",
             company.name,
             company.industry,
             company.office_tier,
@@ -1514,14 +1611,14 @@ fn update_product_tab(
                 None => "Belum dirilis".to_string(),
             };
             text.0 = format!(
-                "Pengembangan Produk Software\n\
-                 • Nama Produk  : {}\n\
-                 • Kategori     : {}\n\
-                 • Fase         : {}\n\
-                 • Progres Fase : {:.0}%\n\
-                 • Kualitas     : {:.1} / 100\n\
-                 • Mulai / Rilis: Hari {} / {}\n\
-                 • Biaya R&D    : -{}/hari (saat Dev/Testing)",
+                "Pembuatan & Peluncuran Produk\n\
+                 • Nama Produk   : {}\n\
+                 • Bidang        : {}\n\
+                 • Tahap         : {}\n\
+                 • Progres Tahap : {:.0}%\n\
+                 • Kualitas      : {:.1} / 100\n\
+                 • Mulai / Rilis : Hari {} / {}\n\
+                 • Biaya Harian  : -{}/hari (saat dibuat & dicek)",
                 p.name,
                 p.category,
                 p.phase.label(),
@@ -1534,7 +1631,7 @@ fn update_product_tab(
         } else {
             text.0 = format!(
                 "Belum Ada Produk Aktif\n\
-                 Pilih salah satu konsep produk software di bawah untuk mulai membangun (biaya inisiasi {}):",
+                 Pilih salah satu ide produk usaha di bawah untuk mulai membangun (modal awal {}):",
                 format_money(PRODUCT_START_COST)
             );
         }
@@ -1576,23 +1673,23 @@ fn update_employee_tab(
     if let Ok(mut text) = employee_q.single_mut() {
         if employees.roster.is_empty() {
             text.0 = format!(
-                "Belum ada karyawan (0 / {} Workstation Dev tersedia).\n\
-                 Pilih kandidat Developer di bawah:",
+                "Belum ada karyawan (0 / {} meja kerja tersedia).\n\
+                 Pilih calon anggota tim di bawah untuk diajak bergabung:",
                 employees.max_employees
             );
         } else {
             let mut summary = format!(
-                "Tim Aktif ({} / {} Workstation Dev):\n",
+                "Tim Aktif ({} / {} meja kerja) — Dekati mereka & tekan [E] untuk bicara:\n",
                 employees.roster.len(),
                 employees.max_employees
             );
             for emp in &employees.roster {
                 summary.push_str(&format!(
-                    "• {} ({}) — Skill {:.1}x (+{:.1}%/jam) | -{}/hr | {}\n",
+                    "• {} ({}) — Energi {:.0}% | Semangat {:.0}% | Gaji {}/hr | {}\n",
                     emp.name,
                     emp.role,
-                    emp.skill,
-                    emp.skill * 1.8,
+                    emp.energy,
+                    emp.mood,
                     format_money(emp.daily_salary),
                     emp.state.label(),
                 ));
@@ -1638,7 +1735,7 @@ fn update_market_tab(
         let mut hist_lines = String::new();
         for snap in market.history.iter().rev().take(6) {
             hist_lines.push_str(&format!(
-                "\n  [Hari {:>2}] +{} baru / -{} churn | {} aktif | +{}",
+                "\n  [Hari {:>2}] +{} baru / -{} berhenti | {} pelanggan | +{}",
                 snap.day,
                 snap.new_users,
                 snap.churned_users,
@@ -1648,20 +1745,20 @@ fn update_market_tab(
         }
         if hist_lines.is_empty() {
             hist_lines.push_str(if is_launched {
-                "\n  Menunggu pergantian hari pertama pasca-rilis..."
+                "\n  Menunggu pergantian hari pertama setelah produk dirilis..."
             } else {
-                "\n  Rilis produk terlebih dahulu di tab Product untuk mulai mendapat user."
+                "\n  Luncurkan produk dulu di tab Produk agar pelanggan mulai berdatangan."
             });
         }
 
         text.0 = format!(
-            "Analisis Pasar & Penjualan\n\
-             • Kondisi Pasar    : {} ({:.2}x demand)\n\
-             • Harga Langganan  : {}/user/bln (Churn {:.1}%/hari)\n\
-             • Pengguna Aktif   : {} user\n\
-             • Omzet Hari Lalu  : {}\n\n\
-             Riwayat Harian:{}\n\n\
-             Pilih Harga Langganan (murah = pertumbuhan cepat, mahal = margin tinggi):",
+            "Laporan Pelanggan & Penjualan\n\
+             • Minat Pasar        : {} ({:.2}x)\n\
+             • Harga Jual         : {}/bln (Pelanggan berhenti {:.1}%/hari)\n\
+             • Pelanggan Aktif    : {} orang\n\
+             • Pemasukan Hari Lalu: {}\n\n\
+             Catatan Harian:{}\n\n\
+             Atur Harga Jual (terjangkau = cepat ramai, premium = untung besar per orang):",
             market.demand_label(),
             market.base_demand,
             format_money(market.price_per_month),
@@ -1689,9 +1786,9 @@ fn update_office_tab(
         let count = expansion.purchased.len();
         let total = OfficeUpgradeKind::ALL.len();
         text.0 = format!(
-            "Ekspansi & Fasilitas Kantor ({count} / {total} Terpasang)\n\
-             • Reputasi Saat Ini : {:.1}\n\
-             • Pilih aset untuk dipasang langsung ke ruang kantor (otomatis tersimpan di F5 Save):",
+            "Tata Ruang & Perlengkapan Kantor ({count} / {total} Terpasang)\n\
+             • Nama Baik Usaha  : {:.1}\n\
+             • Pesan perlengkapan di bawah — kurir akan mengantarnya ke depan pintu untuk diambil [E]:",
             company.reputation
         );
     }
