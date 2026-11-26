@@ -1,6 +1,7 @@
 use bevy::{asset::AssetPlugin, prelude::*};
 use std::path::PathBuf;
 
+mod audio;
 mod company;
 mod core;
 mod economy;
@@ -13,6 +14,7 @@ mod product;
 mod save_system;
 mod ui;
 
+use audio::GameAudioPlugin;
 use company::CompanyPlugin;
 use core::{NotificationPlugin, TimePlugin};
 use economy::EconomyPlugin;
@@ -66,7 +68,7 @@ fn main() {
                 })
                 .set(WindowPlugin {
                     primary_window: Some(Window {
-                        title: "Startup Tycoon - MVP Prototype".into(),
+                        title: "Startup Tycoon".into(),
                         resolution: (1280, 720).into(),
                         ..default()
                     }),
@@ -76,6 +78,7 @@ fn main() {
         .add_plugins((
             TimePlugin,
             NotificationPlugin,
+            GameAudioPlugin,
             CompanyPlugin,
             EconomyPlugin,
             ProductPlugin,

@@ -7,6 +7,7 @@ use bevy::{
 };
 
 use crate::{
+    audio::AudioSettings,
     company::CompanyState,
     core::{GameClock, NotificationFeed, SimSpeed},
     economy::FinanceState,
@@ -29,8 +30,10 @@ impl Plugin for GameUiPlugin {
                 Update,
                 (
                     (handle_workstation_close, handle_workstation_interact).chain(),
+                    apply_ui_font,
                     update_hud_mode,
                     update_hud_status,
+                    update_mute_button,
                     update_speed_button_styles,
                     update_tab_button_styles,
                     update_price_button_styles,
@@ -80,8 +83,17 @@ struct HudCashText;
 #[derive(Component)]
 struct HudTimeText;
 
+#[derive(Component)]
+struct MuteButton;
+
+#[derive(Component)]
+struct MuteButtonText;
+
 #[derive(Component, Clone, Copy)]
 struct SpeedButton(SimSpeed);
+
+#[derive(Resource)]
+struct UiFontHandle(Handle<Font>);
 
 #[derive(Component)]
 struct CrosshairDot;
@@ -172,14 +184,17 @@ fn format_money(amount: i64) -> String {
 
 fn hud_hint_string(mode_label: &str) -> String {
     format!(
-        "Startup Tycoon (MVP) - Mode: {mode_label}\n\
+        "Startup Tycoon - Mode: {mode_label}\n\
          [Klik Kanan] Kunci Mouse | [ESC] Lepas Mouse\n\
          [WASD] Jalan | [Shift] Lari | [V] 1st/3rd Person | [E] Interaksi\n\
-         [0/P] Pause | [1] 1x | [2] 2x | [F5] Save | [F9] Load"
+         [0/P] Pause | [1] 1x | [2] 2x | [M] Mute | [F5] Save | [F9] Load"
     )
 }
 
 fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
+    let font_handle: Handle<Font> = asset_server.load("fonts/PlusJakartaSans.ttf");
+    commands.insert_resource(UiFontHandle(font_handle));
+
     let icon_money: Handle<Image> = asset_server.load("ui/icons/ui_icon_money.png");
     let icon_time: Handle<Image> = asset_server.load("ui/icons/ui_icon_time.png");
     let icon_company: Handle<Image> = asset_server.load("ui/icons/ui_icon_company.png");
@@ -312,6 +327,32 @@ fn setup_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                         ));
                     });
                 }
+
+                btns.spawn((
+                    MuteButton,
+                    HudInteractive,
+                    Button,
+                    Hovered::default(),
+                    Node {
+                        padding: UiRect::axes(px(8.0), px(4.0)),
+                        ..default()
+                    },
+                    BackgroundColor(Color::srgb(0.18, 0.23, 0.31)),
+                ))
+                .observe(|_: On<Activate>, mut audio: ResMut<AudioSettings>| {
+                    audio.muted = !audio.muted;
+                })
+                .with_children(|b| {
+                    b.spawn((
+                        MuteButtonText,
+                        Text::new("Audio: On"),
+                        TextFont {
+                            font_size: FontSize::Px(13.0),
+                            ..default()
+                        },
+                        TextColor(Color::WHITE),
+                    ));
+                });
             });
         });
 
@@ -1173,6 +1214,42 @@ fn handle_workstation_close(
         } else {
             *bg = BackgroundColor(Color::srgb(0.24, 0.28, 0.36));
         }
+    }
+}
+
+fn apply_ui_font(
+    ui_font: Res<UiFontHandle>,
+    mut fonts: Query<&mut TextFont, Added<TextFont>>,
+) {
+    for mut tf in &mut fonts {
+        tf.font = ui_font.0.clone().into();
+    }
+}
+
+fn update_mute_button(
+    audio: Res<AudioSettings>,
+    mut btn_q: Query<(&Hovered, Option<&Pressed>, &mut BackgroundColor), With<MuteButton>>,
+    mut text_q: Query<&mut Text, With<MuteButtonText>>,
+) {
+    for (hovered, pressed, mut bg) in &mut btn_q {
+        if pressed.is_some() {
+            *bg = BackgroundColor(Color::srgb(0.16, 0.56, 0.42));
+        } else if audio.muted {
+            *bg = BackgroundColor(Color::srgb(0.55, 0.22, 0.24));
+        } else if hovered.get() {
+            *bg = BackgroundColor(Color::srgb(0.28, 0.35, 0.46));
+        } else {
+            *bg = BackgroundColor(Color::srgb(0.18, 0.23, 0.31));
+        }
+    }
+    if audio.is_changed()
+        && let Ok(mut t) = text_q.single_mut()
+    {
+        t.0 = if audio.muted {
+            "Audio: Off".to_string()
+        } else {
+            "Audio: On".to_string()
+        };
     }
 }
 

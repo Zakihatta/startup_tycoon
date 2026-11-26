@@ -34,7 +34,7 @@ TASKS = [
     # M3 - Company & Finance
     ("T-15", "MVP Core", "M3 - Company & Finance", "Engine/Code", "Sistem waktu simulasi (jam/hari/bulan, Pause, 1x, 2x)", "Must-Have", "Done", "src/core/time.rs", "Tick 15m independen framerate + 3 unit test"),
     ("T-16", "MVP Core", "M3 - Company & Finance", "Engine/Code", "State perusahaan & keuangan (kas, sewa, gaji, pemasukan)", "Must-Have", "Done", "src/company/mod.rs; src/economy/mod.rs", "Ledger transaksi + sewa harian + 2 unit test"),
-    ("T-17", "MVP Core", "M3 - Company & Finance", "Asset 2D/UI", "Siapkan aset UI icons (.png) & UI font (.ttf/.otf)", "Must-Have", "In Progress", "assets/ui/icons/; scripts/generate_ui_icons.py", "6 ikon PNG selesai; font masih pakai default Bevy"),
+    ("T-17", "MVP Core", "M3 - Company & Finance", "Asset 2D/UI", "Siapkan aset UI icons (.png) & UI font (.ttf/.otf)", "Must-Have", "Done", "assets/ui/icons/; assets/fonts/PlusJakartaSans.ttf", "6 ikon PNG + PlusJakartaSans.ttf (SIL OFL 1.1)"),
     ("T-18", "MVP Core", "M3 - Company & Finance", "UI", "HUD utama (uang, tanggal, speed) + panel Finance/Report", "Must-Have", "Done", "src/ui/mod.rs", "HUD top-right + tab Overview & Finance di StartupOS"),
 
     # M4 - Product Development
@@ -63,8 +63,8 @@ TASKS = [
     ("T-31", "MVP Core", "M9 - Save System", "Engine/Code", "Implementasi Save/Load state perusahaan, karyawan, produk, & layout", "Must-Have", "Done", "src/save_system/mod.rs; src/ui/mod.rs", "Format RON (saves/savegame.ron), F5/F9 + validasi + 2 test"),
 
     # M10 - Polish & Audio
-    ("T-32", "Post-MVP", "M10 - Polish & Audio", "Audio", "Siapkan & integrasikan audio .ogg (UI click, footsteps, typing, door, ambience)", "Low", "To Do", "assets/audio/", "Bevy Audio / rodio"),
-    ("T-33", "Post-MVP", "M10 - Polish & Audio", "QA/Release", "Optimasi performa, perapihan ceiling/detail visual, & bugfixing", "Medium", "To Do", "-", "Evaluasi FPS & ukuran aset"),
+    ("T-32", "Post-MVP", "M10 - Polish & Audio", "Audio", "Siapkan & integrasikan audio .ogg (UI click, footsteps, typing, door, ambience)", "Low", "Done", "assets/audio/; src/audio/mod.rs", "6 SFX + ambient_office.ogg loop + [M] Mute"),
+    ("T-33", "Post-MVP", "M10 - Polish & Audio", "QA/Release", "Optimasi performa, perapihan ceiling/detail visual, & bugfixing", "Medium", "Done", "src/office.rs; src/ui/mod.rs; src/main.rs", "Perimeter ceiling beams, courtyard, title & 15/15 test"),
 
     # Deployment & Launch
     ("T-34", "Deployment & Launch", "Release & Launch", "QA/Release", "Compile release build (cargo build --release) untuk Windows/Linux/macOS", "Must-Have", "To Do", "target/release/startup_tycon.exe", "Opsional: WASM web demo"),
@@ -87,9 +87,9 @@ ASSETS = [
     ("Developer Character", "Character", "Procedural (scripts/generate_character_glb.py)", "GLB", "Project Original", "Tested", "assets/characters/employees/character_developer.glb", "Idle, Walk, Sitting, Typing (M5)"),
     ("Employee Portraits", "UI", "Procedural (scripts/generate_portraits.py)", "PNG", "Project Original", "Tested", "assets/characters/employees/portraits/", "developer_01.png & developer_02.png (M5)"),
     ("UI Icon Set", "UI", "Procedural (scripts/generate_ui_icons.py)", "PNG", "Project Original", "Tested", "assets/ui/icons/", "6 ikon 64x64 RGBA: money, time, company, employee, product, settings"),
-    ("UI Font", "UI", "TBD", "TTF/OTF", "TBD", "Needed", "assets/fonts/", "Font UI berlisensi komersial (M3)"),
+    ("UI Font", "UI", "Google Fonts (SIL OFL)", "TTF", "SIL Open Font License 1.1", "Tested", "assets/fonts/PlusJakartaSans.ttf", "PlusJakartaSans + OFL.txt (M10)"),
     ("Furniture Lanjutan", "Furniture", "Procedural (scripts/generate_office_assets.py)", "GLB", "Project Original", "Tested", "assets/furniture/; assets/equipment/", "Sofa, plant pot, whiteboard, server rack (M8)"),
-    ("Audio SFX & Ambience", "Audio", "TBD", "OGG", "TBD", "Needed", "assets/audio/", "UI click, footsteps, typing, door, BGM (M10)"),
+    ("Audio SFX & Ambience", "Audio", "Procedural (scripts/generate_audio_ogg.py)", "OGG", "Project Original", "Tested", "assets/audio/", "6 SFX + ambient_office.ogg loop (M10)"),
 ]
 
 MILESTONES = [

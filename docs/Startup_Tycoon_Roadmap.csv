@@ -15,7 +15,7 @@ T-13,MVP Core,M2 - Office Interaction,UI,Deteksi objek di depan crosshair + prom
 T-14,MVP Core,M2 - Office Interaction,UI,Interaksi workstation/komputer untuk buka menu manajemen,Must-Have,Done,src/ui/mod.rs; src/player.rs,Modal StartupOS v0.1 + lepas cursor otomatis
 T-15,MVP Core,M3 - Company & Finance,Engine/Code,"Sistem waktu simulasi (jam/hari/bulan, Pause, 1x, 2x)",Must-Have,Done,src/core/time.rs,Tick 15m independen framerate + 3 unit test
 T-16,MVP Core,M3 - Company & Finance,Engine/Code,"State perusahaan & keuangan (kas, sewa, gaji, pemasukan)",Must-Have,Done,src/company/mod.rs; src/economy/mod.rs,Ledger transaksi + sewa harian + 2 unit test
-T-17,MVP Core,M3 - Company & Finance,Asset 2D/UI,Siapkan aset UI icons (.png) & UI font (.ttf/.otf),Must-Have,In Progress,assets/ui/icons/; scripts/generate_ui_icons.py,6 ikon PNG selesai; font masih pakai default Bevy
+T-17,MVP Core,M3 - Company & Finance,Asset 2D/UI,Siapkan aset UI icons (.png) & UI font (.ttf/.otf),Must-Have,Done,assets/ui/icons/; assets/fonts/PlusJakartaSans.ttf,6 ikon PNG + PlusJakartaSans.ttf (SIL OFL 1.1)
 T-18,MVP Core,M3 - Company & Finance,UI,"HUD utama (uang, tanggal, speed) + panel Finance/Report",Must-Have,Done,src/ui/mod.rs,HUD top-right + tab Overview & Finance di StartupOS
 T-19,MVP Core,M4 - Product Development,Engine/Code,"Model data & progres produk (fitur, kualitas, bug, rilis versi)",Must-Have,Done,src/product/mod.rs,Siklus Dev->Testing->ReadyToLaunch->Launched + 2 test
 T-20,MVP Core,M4 - Product Development,UI,UI Product Development di layar komputer/manajemen,Must-Have,Done,src/ui/mod.rs,"Tab Product: 3 preset produk, progress bar, tombol Rilis"
@@ -30,8 +30,8 @@ T-28,MVP Core,M7 - MVP Integration,QA/Release,Balancing ekonomi & playtest penuh
 T-29,Post-MVP,M8 - Office Expansion,Asset 3D,"Tambah aset furniture lanjutan (sofa, meeting table, whiteboard, tanaman, server)",Medium,Done,assets/furniture/*.glb; assets/equipment/equipment_server_rack.glb,"Sofa, plant, whiteboard, server rack (.glb tervalidasi)"
 T-30,Post-MVP,M8 - Office Expansion,Engine/Code,Sistem beli/sewa ruang baru & grid building placement (1m),Medium,Done,src/office.rs; src/ui/mod.rs; src/save_system/mod.rs,Tab Office: 5 upgrade + workstation Dev #2 + save/load layout
 T-31,MVP Core,M9 - Save System,Engine/Code,"Implementasi Save/Load state perusahaan, karyawan, produk, & layout",Must-Have,Done,src/save_system/mod.rs; src/ui/mod.rs,"Format RON (saves/savegame.ron), F5/F9 + validasi + 2 test"
-T-32,Post-MVP,M10 - Polish & Audio,Audio,"Siapkan & integrasikan audio .ogg (UI click, footsteps, typing, door, ambience)",Low,To Do,assets/audio/,Bevy Audio / rodio
-T-33,Post-MVP,M10 - Polish & Audio,QA/Release,"Optimasi performa, perapihan ceiling/detail visual, & bugfixing",Medium,To Do,-,Evaluasi FPS & ukuran aset
+T-32,Post-MVP,M10 - Polish & Audio,Audio,"Siapkan & integrasikan audio .ogg (UI click, footsteps, typing, door, ambience)",Low,Done,assets/audio/; src/audio/mod.rs,6 SFX + ambient_office.ogg loop + [M] Mute
+T-33,Post-MVP,M10 - Polish & Audio,QA/Release,"Optimasi performa, perapihan ceiling/detail visual, & bugfixing",Medium,Done,src/office.rs; src/ui/mod.rs; src/main.rs,"Perimeter ceiling beams, courtyard, title & 15/15 test"
 T-34,Deployment & Launch,Release & Launch,QA/Release,Compile release build (cargo build --release) untuk Windows/Linux/macOS,Must-Have,To Do,target/release/startup_tycon.exe,Opsional: WASM web demo
 T-35,Deployment & Launch,Release & Launch,QA/Release,Packaging folder rilis (executable + assets/ + lisensi) & uji di PC bersih,Must-Have,To Do,-,Pastikan tanpa dependency Rust eksternal
 T-36,Deployment & Launch,Release & Launch,QA/Release,"Siapkan halaman storefront (itch.io / Steam): screenshot, trailer, deskripsi",Must-Have,To Do,-,Rilis v0.1 MVP/Demo & kumpulkan feedback

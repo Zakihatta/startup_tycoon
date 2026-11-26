@@ -360,9 +360,40 @@ fn spawn_workstation(
 fn setup_office_scene(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
     expansion: Res<OfficeExpansionState>,
     mut colliders: ResMut<OfficeColliders>,
 ) {
+    // Outdoor lawn/courtyard ground so window views feel grounded
+    commands.spawn((
+        Mesh3d(meshes.add(Plane3d::default().mesh().size(48.0, 48.0))),
+        MeshMaterial3d(materials.add(StandardMaterial {
+            base_color: Color::srgb(0.46, 0.58, 0.42),
+            perceptual_roughness: 0.95,
+            ..default()
+        })),
+        Transform::from_xyz(0.0, -0.07, 0.0),
+    ));
+
+    // Perimeter ceiling beams (leaves central skylight open for warm daylight)
+    let beam_mat = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.92, 0.91, 0.88),
+        perceptual_roughness: 0.85,
+        ..default()
+    });
+    for (pos, size) in [
+        (Vec3::new(0.0, 2.84, -2.1), Vec3::new(6.15, 0.08, 0.95)),
+        (Vec3::new(0.0, 2.84, 2.1), Vec3::new(6.15, 0.08, 0.95)),
+        (Vec3::new(-2.55, 2.84, 0.0), Vec3::new(1.05, 0.08, 3.25)),
+        (Vec3::new(2.55, 2.84, 0.0), Vec3::new(1.05, 0.08, 3.25)),
+    ] {
+        commands.spawn((
+            Mesh3d(meshes.add(Cuboid::from_size(size))),
+            MeshMaterial3d(beam_mat.clone()),
+            Transform::from_translation(pos),
+        ));
+    }
     let floor_handle = asset_server.load(
         GltfAssetLabel::Scene(0).from_asset("environment/floor/environment_floor_tile.glb"),
     );
